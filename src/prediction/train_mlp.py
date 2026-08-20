@@ -25,10 +25,11 @@ def train_and_evaluate():
     numeric_features = X_train.drop(columns=['student_id', 'subject']).columns.tolist()
     categorical_features = ['subject']
     
+    # FIXED: handle_unknown='ignore' allows unseen subjects (like 'Networks', 'Ethics') during inference
     preprocessor = ColumnTransformer(
         transformers=[
             ('num', StandardScaler(), numeric_features),
-            ('cat', OneHotEncoder(drop='first'), categorical_features)
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
         ])
         
     print("Building MLP Pipeline with recommended defaults...")
@@ -54,7 +55,9 @@ def train_and_evaluate():
     print(f"Training complete. Early stopping triggered at epoch: {mlp.n_iter_}")
     
     # --- Step 6: Honest Test Evaluation ---
+    # FIXED: Wrap predictions in a Pandas Series with matching index for error analysis
     y_pred = pd.Series(pipeline.predict(X_test), index=y_test.index)
+    
     mae = mean_absolute_error(y_test, y_pred)
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2 = r2_score(y_test, y_pred)
@@ -72,7 +75,7 @@ def train_and_evaluate():
     worst_indices = errors.nlargest(20).index
     print("\nError Analysis - Top 5 worst predictions:")
     for idx in worst_indices[:5]:
-        print(f"True: {y_test.loc[idx]:.1f}, Pred: {y_pred.loc[idx]:.1f}, Diff: {errors.loc[idx]:.1f} | Subj: {df.loc[idx, 'subject']}")
+        print(f"True: {y_test.loc[idx]:.1f}, Pred: {y_pred[idx]:.1f}, Diff: {errors.loc[idx]:.1f} | Subj: {df.loc[idx, 'subject']}")
         
     # --- Export Report Figures ---
     os.makedirs(os.path.join("docs", "figures"), exist_ok=True)
@@ -109,6 +112,7 @@ def train_and_evaluate():
     plt.close()
     
     # --- Step 8: Persist the Pipeline ---
+    # FIXED: Ensure models directory exists
     os.makedirs("models", exist_ok=True)
     model_path = os.path.join("models", "predictor_v1.joblib")
     joblib.dump(pipeline, model_path)

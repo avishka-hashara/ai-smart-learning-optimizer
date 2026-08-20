@@ -43,7 +43,22 @@ if __name__ == "__main__":
     subjects = ["Databases", "Networks", "Statistics", "Maths", "Ethics"]
     
     # We pass empty mock DataFrames because the Stage 1 stub currently ignores features
-    mock_features = pd.DataFrame({'subject': subjects})
+    mock_features = pd.DataFrame({
+        'subject': subjects,
+        'study_hours_week': [12.0, 15.0, 8.0, 20.0, 5.0],
+        'quiz_attempts': [3, 5, 2, 8, 1],
+        'consecutive_logins': [4, 10, 2, 14, 1],
+        'material_access_freq': [10, 25, 5, 40, 2],
+        'improvement_rate': [1.1, 1.5, 0.9, 2.1, 0.8],
+        'score_consistency': [0.5, 0.7, 0.4, 0.8, 0.3],
+        'time_per_question': [1.5, 1.2, 2.0, 1.0, 2.5],
+        'class_size': [30] * 5,
+        'resource_index': [50.0, 75.0, 40.0, 90.0, 30.0],
+        'faculty_ratio': [0.1] * 5,
+        'peak_study_time': [14, 10, 18, 9, 20],
+        'weekend_study_ratio': [0.2, 0.5, 0.1, 0.8, 0.0],
+        'difficulty_indicator': [2, 1, 3, 1, 2]
+    })
     
     # 1. The Overconfident Student (Demo case: Failing a subject but rating it high)
     confidence_1 = np.array([9.0, 5.0, 6.0, 7.0, 5.0])
