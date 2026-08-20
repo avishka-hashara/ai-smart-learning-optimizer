@@ -7,3 +7,5 @@ data/*.csv
 
 # Models
 models/*.joblib
+config.bat
+node_modules
