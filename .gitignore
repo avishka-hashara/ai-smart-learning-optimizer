@@ -7,3 +7,8 @@ data/*.csv
 
 # Models
 models/*.joblib
+
+# Local virtual environment
+.venv/
+config.bat
+node_modules
