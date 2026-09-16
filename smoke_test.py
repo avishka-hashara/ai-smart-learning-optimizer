@@ -25,6 +25,9 @@ def test_profile(profile_name, subjects, features_df, confidence):
     max_h = np.full(len(subjects), 15.0)
     allocation_results = allocate_hours(risk_results['priority'], predicted_marks, budget, min_h, max_h)
     print(f"Allocated Hours: {np.round(allocation_results['hours'], 2)}")
+    print(f"GA Fitness: {allocation_results['fitness']:.2f}")
+    print(f"Baselines: { {k: round(v, 2) for k, v in allocation_results['baselines'].items()} }")
+    print(f"Hour sum: {np.sum(allocation_results['hours']):.2f} / {budget:.2f}")
     
     print("\n--- STAGE 4: Scheduling ---")
     schedule = build_schedule(
@@ -36,7 +39,7 @@ def test_profile(profile_name, subjects, features_df, confidence):
     )
     print(f"Schedule generated with {len(schedule)} blocks.")
     print(f"First block sample: {schedule[0]}")
-    print(f"✅ {profile_name} passed!")
+    print(f"[PASS] {profile_name} passed successfully!")
 
 if __name__ == "__main__":
     # Standard agreed-upon subjects for testing
@@ -72,4 +75,6 @@ if __name__ == "__main__":
     confidence_3 = np.array([2.0, 3.0, 2.0, 4.0, 2.0])
     test_profile("The Uniformly Weak Student", subjects, mock_features, confidence_3)
     
-    print("\n🚀 ALL SMOKE TESTS COMPLETED SUCCESSFULLY. PIPELINE IS INTEGRATED.")
+    print("\n=======================================================")
+    print("[SUCCESS] ALL SMOKE TESTS COMPLETED SUCCESSFULLY!")
+    print("=======================================================")

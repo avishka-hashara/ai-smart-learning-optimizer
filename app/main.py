@@ -307,8 +307,8 @@ with st.sidebar:
     <div style="font-size: 0.8rem; color: #64748b; line-height: 1.5;">
         <b>Architecture Status:</b><br/>
         • <b>Stage 1:</b> ML Model (Live)<br/>
-        • <b>Stage 2:</b> Fuzzy Risk Engine (Stub)<br/>
-        • <b>Stage 3:</b> Hour Allocation (Stub)<br/>
+        • <b>Stage 2:</b> Fuzzy Risk Engine (Live)<br/>
+        • <b>Stage 3:</b> GA Optimizer (Live)<br/>
         • <b>Stage 4:</b> Schedule Builder (Stub)
     </div>
     """, unsafe_allow_html=True)
@@ -322,9 +322,11 @@ st.markdown(f"""
             <div class="hero-title">🧠 Smart Learning & Performance Optimizer</div>
             <div class="hero-subtitle">Adaptive ML score prediction, cognitive gap analysis, and intelligent study time allocation</div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span class="badge-pill badge-live">● Stage 1: Live Predictor</span>
-            <span class="badge-pill badge-stub">⚡ Stages 2-4: Fast Stubs</span>
+            <span class="badge-pill badge-live">● Stage 2: Live Fuzzy Risk</span>
+            <span class="badge-pill badge-live">● Stage 3: Live GA Optimizer</span>
+            <span class="badge-pill badge-stub">⚡ Stage 4: Stub</span>
         </div>
     </div>
 </div>
@@ -674,6 +676,60 @@ if st.session_state.pipeline_results is not None:
         st.plotly_chart(fig_alloc, use_container_width=True)
         
         st.dataframe(comp_df, use_container_width=True, hide_index=True)
+        
+        st.markdown("<br/>", unsafe_allow_html=True)
+        st.markdown("##### 📈 Genetic Algorithm Convergence & Baseline Benchmark")
+        st.caption("Demonstrates optimization progress across 100 generations compared to naive heuristic baselines (Handbook Section 3.6).")
+        
+        baselines = allocation_results.get('baselines', {})
+        eq_fit = baselines.get('equal', 0.0)
+        prop_fit = baselines.get('proportional', 0.0)
+        grd_fit = baselines.get('greedy', 0.0)
+        ga_fit = allocation_results.get('fitness', 0.0)
+        
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        with b_col1:
+            st.metric("🏆 GA Best Fitness", f"{ga_fit:.1f}", delta="Optimal Search")
+        with b_col2:
+            st.metric("Equal Split Baseline", f"{eq_fit:.1f}", delta=f"{ga_fit - eq_fit:+.1f} pts", delta_color="inverse")
+        with b_col3:
+            st.metric("Proportional Baseline", f"{prop_fit:.1f}", delta=f"{ga_fit - prop_fit:+.1f} pts", delta_color="inverse")
+        with b_col4:
+            st.metric("Greedy Baseline", f"{grd_fit:.1f}", delta=f"{ga_fit - grd_fit:+.1f} pts", delta_color="inverse")
+            
+        history = allocation_results.get('history', [])
+        if history:
+            fig_conv = go.Figure()
+            fig_conv.add_trace(go.Scatter(
+                x=list(range(len(history))),
+                y=history,
+                mode='lines',
+                name='GA Best Fitness',
+                line=dict(color='#38bdf8', width=2.5)
+            ))
+            if eq_fit > 0:
+                fig_conv.add_hline(
+                    y=eq_fit, line_dash="dash", line_color="#fbbf24",
+                    annotation_text=f"Equal Split ({eq_fit:.1f})",
+                    annotation_font_color="#fbbf24"
+                )
+            if prop_fit > 0:
+                fig_conv.add_hline(
+                    y=prop_fit, line_dash="dot", line_color="#f43f5e",
+                    annotation_text=f"Proportional Split ({prop_fit:.1f})",
+                    annotation_font_color="#f43f5e"
+                )
+            fig_conv.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#cbd5e1"),
+                xaxis=dict(title="Generation", gridcolor="rgba(255,255,255,0.06)"),
+                yaxis=dict(title="Fitness Score", gridcolor="rgba(255,255,255,0.06)"),
+                margin=dict(t=25, b=20, l=20, r=20),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_conv, use_container_width=True)
 
     # TAB 5: Raw Pipeline Data
     with tab_raw:
