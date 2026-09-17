@@ -7,7 +7,7 @@ import time
 import plotly.graph_objects as go
 import plotly.express as px
 
-# Ensure the src folder is in the path so imports work correctly
+# Ensure the project root is in the Python path for reliable module imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.prediction.predict import predict_scores
@@ -15,105 +15,164 @@ from src.fuzzy.risk import assess_risk
 from src.optimizer.allocate import allocate_hours
 from src.scheduler.schedule import build_schedule
 
-# Page configuration
+# -----------------------------------------------------------------------------
+# 1. PAGE SETUP & METADATA
+# -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Smart Learning Optimizer",
+    page_title="AI Smart Learning & Performance Optimizer",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Modern CSS Styling
+# -----------------------------------------------------------------------------
+# 2. ULTRA-PREMIUM MODERN DESIGN SYSTEM (CSS)
+# -----------------------------------------------------------------------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
+    /* Global Typography & Deep Obsidian Canvas */
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     }
+    
+    h1, h2, h3, h4, .hero-title, .kpi-value {
+        font-family: 'Outfit', sans-serif !important;
+    }
 
-    /* Background and Layout Polish */
-    .main {
-        background-color: #0b0f19;
+    .stApp {
+        background: radial-gradient(circle at 15% 15%, rgba(49, 46, 129, 0.25) 0%, transparent 45%),
+                    radial-gradient(circle at 85% 75%, rgba(88, 28, 135, 0.2) 0%, transparent 45%),
+                    #0b0f19 !important;
+        color: #f1f5f9;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #1e293b;
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #334155;
+    }
+
+    /* Hero Banner with Specular Highlight */
+    .hero-banner {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 28px 34px;
+        margin-bottom: 24px;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(16px);
+        position: relative;
+        overflow: hidden;
     }
     
-    /* Header Card */
-    .hero-banner {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 24px 30px;
-        margin-bottom: 24px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(12px);
+    .hero-banner::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
     }
     
     .hero-title {
-        font-size: 1.9rem;
+        font-size: 2.1rem;
         font-weight: 800;
-        background: linear-gradient(120deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
+        background: linear-gradient(120deg, #ffffff 0%, #e2e8f0 50%, #94a3b8 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 6px;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
     }
     
     .hero-subtitle {
         color: #94a3b8;
-        font-size: 0.95rem;
-        margin-bottom: 12px;
+        font-size: 0.98rem;
+        line-height: 1.5;
+        max-width: 750px;
     }
-    
+
+    /* Live Status Badge Pills */
     .badge-pill {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
+        gap: 7px;
+        padding: 5px 14px;
         border-radius: 9999px;
         font-size: 0.78rem;
         font-weight: 600;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
     }
     
     .badge-live {
-        background: rgba(16, 185, 129, 0.15);
+        background: rgba(16, 185, 129, 0.12);
         color: #34d399;
         border: 1px solid rgba(16, 185, 129, 0.3);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
     }
     
     .badge-stub {
-        background: rgba(245, 158, 11, 0.15);
+        background: rgba(245, 158, 11, 0.12);
         color: #fbbf24;
         border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
-    /* Subject Card Box */
+    .pulse-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #34d399;
+        box-shadow: 0 0 8px #34d399;
+        animation: pulseAnimation 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseAnimation {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.5; }
+    }
+
+    /* Subject Configuration Cards */
     .subject-card {
-        background: linear-gradient(180deg, rgba(26, 34, 53, 0.65) 0%, rgba(17, 24, 39, 0.8) 100%);
-        border: 1px solid rgba(99, 102, 241, 0.15);
-        border-radius: 14px;
-        padding: 16px 14px;
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 16px 16px;
         margin-bottom: 12px;
-        transition: all 0.25s ease-in-out;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        position: relative;
+        overflow: hidden;
     }
     
     .subject-card:hover {
-        border-color: rgba(99, 102, 241, 0.4);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+        border-color: rgba(255, 255, 255, 0.18);
     }
 
     .subject-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         padding-bottom: 8px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    .subject-name {
+    .subject-title {
         font-weight: 700;
         font-size: 1.05rem;
         color: #f8fafc;
@@ -122,132 +181,170 @@ st.markdown("""
         gap: 8px;
     }
 
-    .lms-chip {
-        font-size: 0.75rem;
+    .lms-pill {
+        font-size: 0.72rem;
         font-weight: 600;
         background: rgba(99, 102, 241, 0.15);
-        color: #818cf8;
-        padding: 2px 8px;
-        border-radius: 6px;
+        color: #a5b4fc;
+        padding: 3px 8px;
+        border-radius: 8px;
         border: 1px solid rgba(99, 102, 241, 0.25);
     }
 
-    /* Metric Highlight Boxes */
-    .kpi-container {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.6) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 14px;
-        padding: 18px 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    /* KPI Summary Cards */
+    .kpi-box {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.55) 0%, rgba(15, 23, 42, 0.75) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px 22px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(12px);
+        transition: transform 0.2s ease;
     }
 
-    .kpi-title {
-        font-size: 0.8rem;
+    .kpi-box:hover {
+        transform: translateY(-2px);
+    }
+
+    .kpi-label {
+        font-size: 0.76rem;
         color: #94a3b8;
         text-transform: uppercase;
         font-weight: 700;
-        letter-spacing: 0.05em;
-        margin-bottom: 4px;
+        letter-spacing: 0.06em;
+        margin-bottom: 6px;
     }
 
     .kpi-value {
-        font-size: 1.8rem;
+        font-size: 1.95rem;
         font-weight: 800;
         color: #ffffff;
+        line-height: 1.1;
     }
 
-    .kpi-sub {
-        font-size: 0.78rem;
+    .kpi-desc {
+        font-size: 0.8rem;
         color: #64748b;
-        margin-top: 4px;
+        margin-top: 6px;
     }
 
-    /* Timetable Card */
-    .schedule-item {
-        background: rgba(30, 41, 59, 0.45);
-        border-left: 4px solid #6366f1;
-        border-radius: 8px;
-        padding: 12px 16px;
+    /* Timetable Items */
+    .schedule-card {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 12px;
+        padding: 14px 18px;
         margin-bottom: 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-top: 1px solid rgba(255, 255, 255, 0.04);
-        border-right: 1px solid rgba(255, 255, 255, 0.04);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.2s ease;
     }
 
-    .schedule-time {
-        font-weight: 700;
-        color: #38bdf8;
-        font-size: 0.9rem;
+    .schedule-card:hover {
+        background: rgba(30, 41, 59, 0.8);
+        border-color: rgba(99, 102, 241, 0.3);
     }
 
-    .schedule-subj {
-        font-weight: 600;
-        color: #f1f5f9;
-        font-size: 0.95rem;
-    }
-
-    .schedule-badge {
-        font-size: 0.75rem;
-        background: rgba(148, 163, 184, 0.15);
-        color: #cbd5e1;
-        padding: 3px 8px;
-        border-radius: 6px;
-    }
-
-    /* Button Customization */
-    .stButton>button[kind="primary"] {
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
-        border: none !important;
-        color: white !important;
-        font-weight: 700 !important;
-        padding: 0.65rem 1.8rem !important;
-        border-radius: 10px !important;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35) !important;
-        transition: all 0.2s ease !important;
-    }
-
-    .stButton>button[kind="primary"]:hover {
-        transform: translateY(-1px) !important;
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5) !important;
-    }
-
-    /* Hide standard Streamlit clutter */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Clean tab styling */
+    /* Modern Pill Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 7px 8px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        margin-bottom: 20px;
     }
 
     .stTabs [data-baseweb="tab"] {
-        padding: 8px 18px;
-        border-radius: 8px;
+        border-radius: 10px;
         font-weight: 600;
         font-size: 0.9rem;
+        color: #94a3b8;
+        padding: 8px 18px;
+        border: none !important;
+        transition: all 0.2s ease;
     }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
+    }
+
+    /* Hero CTA Button */
+    .stButton>button[kind="primary"] {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 1.05rem !important;
+        padding: 0.75rem 2.2rem !important;
+        border-radius: 12px !important;
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4) !important;
+        transition: all 0.25s ease !important;
+    }
+
+    .stButton>button[kind="primary"]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6) !important;
+    }
+
+    /* Diagnosis Pill Badges */
+    .diag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .diag-overconfident {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .diag-anxious {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .diag-aligned {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    /* Clean Streamlit Clutter */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# Define Persona Preset Configurations
+# -----------------------------------------------------------------------------
+# 3. STUDENT PERSONAS & SUBJECT CONFIGURATION
+# -----------------------------------------------------------------------------
 PERSONAS = {
     "The Overconfident Student": {
-        "description": "High perceived confidence with moderate/unbalanced study allocation.",
+        "description": "High self-rated confidence despite borderline predicted performance in technical subjects.",
         "avatar": "🦁",
         "conf": [9.0, 5.0, 6.0, 7.0, 5.0],
         "hours": [12.0, 15.0, 8.0, 20.0, 5.0]
     },
     "The Anxious High Achiever": {
-        "description": "Very high study investment despite low confidence in key modules.",
+        "description": "Consistently strong performance telemetry despite severe under-confidence in core subjects.",
         "avatar": "🦉",
         "conf": [3.0, 8.0, 7.0, 8.0, 9.0],
         "hours": [25.0, 20.0, 22.0, 30.0, 18.0]
     },
     "The Uniformly Weak Student": {
-        "description": "Critical need for structured intervention with low study hours.",
+        "description": "Critical low attendance and engagement requiring urgent structured study reallocations.",
         "avatar": "🌱",
         "conf": [2.0, 3.0, 2.0, 4.0, 2.0],
         "hours": [5.0, 4.0, 6.0, 5.0, 3.0]
@@ -255,25 +352,29 @@ PERSONAS = {
 }
 
 SUBJECT_META = [
-    {"name": "Databases", "icon": "💾", "color": "#38bdf8"},
-    {"name": "Networks", "icon": "🌐", "color": "#818cf8"},
-    {"name": "Statistics", "icon": "📊", "color": "#fb7185"},
-    {"name": "Maths", "icon": "📐", "color": "#facc15"},
-    {"name": "Ethics", "icon": "⚖️", "color": "#4ade80"},
+    {"name": "Databases", "icon": "💾", "color": "#38bdf8", "accent": "rgba(56, 189, 248, 0.4)"},
+    {"name": "Networks", "icon": "🌐", "color": "#818cf8", "accent": "rgba(129, 140, 248, 0.4)"},
+    {"name": "Statistics", "icon": "📊", "color": "#fb7185", "accent": "rgba(251, 113, 133, 0.4)"},
+    {"name": "Maths", "icon": "📐", "color": "#facc15", "accent": "rgba(250, 204, 21, 0.4)"},
+    {"name": "Ethics", "icon": "⚖️", "color": "#4ade80", "accent": "rgba(74, 222, 128, 0.4)"},
 ]
 subjects = [s["name"] for s in SUBJECT_META]
 
-# Initialize Session State for clean interactive persistence
+# -----------------------------------------------------------------------------
+# 4. PERSISTENT STATE INITIALIZATION
+# -----------------------------------------------------------------------------
 if 'current_persona' not in st.session_state:
     st.session_state.current_persona = "The Overconfident Student"
 
 if 'lms_logins' not in st.session_state:
-    st.session_state.lms_logins = [np.random.randint(4, 15) for _ in range(5)]
+    st.session_state.lms_logins = [np.random.randint(5, 16) for _ in range(5)]
 
 if 'pipeline_results' not in st.session_state:
     st.session_state.pipeline_results = None
 
-# Sidebar Controls
+# -----------------------------------------------------------------------------
+# 5. SIDEBAR: SIMULATION & ENVIRONMENT CONTROL
+# -----------------------------------------------------------------------------
 with st.sidebar:
     st.markdown("### ⚙️ Simulation Control")
     
@@ -283,58 +384,69 @@ with st.sidebar:
         index=list(PERSONAS.keys()).index(st.session_state.current_persona)
     )
     
-    # Check if persona changed
+    # Auto-switch persona telemetry when selector changes
     if selected_persona != st.session_state.current_persona:
         st.session_state.current_persona = selected_persona
         st.session_state.pipeline_results = None
         st.rerun()
 
     active_p = PERSONAS[st.session_state.current_persona]
-    st.info(f"{active_p['avatar']} **{st.session_state.current_persona}**\n\n{active_p['description']}")
+    st.markdown(f"""
+    <div style="background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 14px; border: 1px solid rgba(255, 255, 255, 0.08); margin-top: 10px;">
+        <div style="font-size: 1.15rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">
+            {active_p['avatar']} {st.session_state.current_persona}
+        </div>
+        <div style="font-size: 0.82rem; color: #94a3b8; line-height: 1.4;">
+            {active_p['description']}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
-    
     st.markdown("### 🔄 Integrations")
     if st.button("🔄 Sync LMS / Canvas Telemetry", use_container_width=True):
-        with st.spinner("Connecting to Canvas LMS API..."):
-            time.sleep(0.8)
-            st.session_state.lms_logins = [np.random.randint(4, 16) for _ in range(5)]
-        st.toast("✅ Real-time LMS telemetry synced successfully!", icon="📡")
+        with st.spinner("Connecting to LMS API..."):
+            time.sleep(0.6)
+            st.session_state.lms_logins = [np.random.randint(6, 18) for _ in range(5)]
+        st.toast("✅ Real-time telemetry synced successfully!", icon="📡")
         st.rerun()
         
     st.markdown("---")
     st.markdown("""
-    <div style="font-size: 0.8rem; color: #64748b; line-height: 1.5;">
-        <b>Architecture Status:</b><br/>
-        • <b>Stage 1:</b> ML Model (Live)<br/>
-        • <b>Stage 2:</b> Fuzzy Risk Engine (Live)<br/>
-        • <b>Stage 3:</b> GA Optimizer (Live)<br/>
-        • <b>Stage 4:</b> Schedule Builder (Stub)
+    <div style="font-size: 0.8rem; color: #64748b; line-height: 1.6;">
+        <b style="color: #94a3b8;">System Pipeline Status:</b><br/>
+        • <b>Stage 1:</b> ML Predictor <span style="color: #34d399; font-weight:700;">● Live</span><br/>
+        • <b>Stage 2:</b> Fuzzy Risk Engine <span style="color: #34d399; font-weight:700;">● Live</span><br/>
+        • <b>Stage 3:</b> GA Optimizer <span style="color: #34d399; font-weight:700;">● Live</span><br/>
+        • <b>Stage 4:</b> Scheduler <span style="color: #fbbf24; font-weight:700;">⚡ Stub</span>
     </div>
     """, unsafe_allow_html=True)
 
-
-# Hero Header Section
+# -----------------------------------------------------------------------------
+# 6. HERO BANNER
+# -----------------------------------------------------------------------------
 st.markdown(f"""
 <div class="hero-banner">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
             <div class="hero-title">🧠 Smart Learning & Performance Optimizer</div>
-            <div class="hero-subtitle">Adaptive ML score prediction, cognitive gap analysis, and intelligent study time allocation</div>
+            <div class="hero-subtitle">Multi-stage pipeline combining ML neural regression, Mamdani fuzzy risk reasoning, and Genetic Algorithm study time optimization.</div>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pill badge-live">● Stage 1: Live Predictor</span>
-            <span class="badge-pill badge-live">● Stage 2: Live Fuzzy Risk</span>
-            <span class="badge-pill badge-live">● Stage 3: Live GA Optimizer</span>
+            <span class="badge-pill badge-live"><span class="pulse-dot"></span> Stage 1: Live Predictor</span>
+            <span class="badge-pill badge-live"><span class="pulse-dot"></span> Stage 2: Live Fuzzy Risk</span>
+            <span class="badge-pill badge-live"><span class="pulse-dot"></span> Stage 3: Live GA Optimizer</span>
             <span class="badge-pill badge-stub">⚡ Stage 4: Stub</span>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Main Section: Subject Telemetry & Configuration
-st.markdown("### 📝 Current Semester Telemetry & Configuration")
-st.caption("Review and adjust your target study hours and self-perceived confidence per subject.")
+# -----------------------------------------------------------------------------
+# 7. TELEMETRY CONFIGURATION GRID
+# -----------------------------------------------------------------------------
+st.markdown("### 📝 Current Semester Telemetry & Self-Assessment")
+st.caption("Adjust weekly target revision hours and perceived confidence ratings per subject to simulate adaptive reallocations.")
 
 preset_hours = active_p["hours"]
 preset_conf = active_p["conf"]
@@ -346,23 +458,22 @@ for i, col in enumerate(cols):
     meta = SUBJECT_META[i]
     with col:
         st.markdown(f"""
-        <div class="subject-card">
+        <div class="subject-card" style="border-top: 3px solid {meta['color']};">
             <div class="subject-header">
-                <span class="subject-name">{meta['icon']} {meta['name']}</span>
-                <span class="lms-chip">📡 {st.session_state.lms_logins[i]} Logins</span>
+                <span class="subject-title">{meta['icon']} {meta['name']}</span>
+                <span class="lms-pill">📡 {st.session_state.lms_logins[i]} Logins</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # User input fields with clean labels
         edited_data[f'hours_{i}'] = st.number_input(
-            f"Target Study Hours/Wk",
+            f"Target Hours / Wk",
             min_value=1.0,
             max_value=40.0,
             value=float(preset_hours[i]),
             step=1.0,
             key=f"h_{st.session_state.current_persona}_{i}",
-            help=f"Weekly study hours planned for {meta['name']}"
+            help=f"Target study hours for {meta['name']}"
         )
         
         edited_data[f'conf_{i}'] = st.slider(
@@ -375,7 +486,7 @@ for i, col in enumerate(cols):
             help="1 = Very Low Confidence, 10 = Mastered"
         )
 
-# Prepare DataFrame matching expected ML pipeline features exactly
+# Construct standard pipeline features DataFrame matching trained model exactly
 df_features = pd.DataFrame({
     'subject': subjects,
     'study_hours_week': [edited_data[f'hours_{i}'] for i in range(5)],
@@ -395,29 +506,37 @@ df_features = pd.DataFrame({
 
 st.markdown("<br/>", unsafe_allow_html=True)
 
-# Run Pipeline Action Bar
+# -----------------------------------------------------------------------------
+# 8. PIPELINE EXECUTION ACTION BAR
+# -----------------------------------------------------------------------------
 btn_col1, btn_col2, btn_col3 = st.columns([1.5, 2, 1.5])
 with btn_col2:
     run_btn = st.button("🚀 Run Full Optimization Pipeline", type="primary", use_container_width=True)
 
 if run_btn:
-    with st.spinner("Processing telemetry through 4-Stage Optimization Pipeline..."):
-        # Split features for Stage 1 and confidence for Stage 2
+    with st.spinner("Executing 4-Stage AI Optimization Pipeline..."):
         confidence_array = np.array([edited_data[f'conf_{i}'] for i in range(5)])
         
-        # --- STAGE 1: Predict Scores ---
+        # --- STAGE 1: ML Score Prediction ---
         predicted_marks = predict_scores(df_features)
         
-        # --- STAGE 2: Assess Risk ---
+        # --- STAGE 2: Fuzzy Inference Risk Reasoning ---
         risk_results = assess_risk(predicted_marks, confidence_array)
         
-        # --- STAGE 3: Hour Allocation ---
-        budget = sum([edited_data[f'hours_{i}'] for i in range(5)])
+        # --- STAGE 3: Genetic Algorithm Reallocation ---
+        budget = float(sum([edited_data[f'hours_{i}'] for i in range(5)]))
         min_h = np.full(len(subjects), 2.0)
         max_h = np.full(len(subjects), 15.0)
-        allocation_results = allocate_hours(risk_results['priority'], predicted_marks, budget, min_h, max_h)
+        allocation_results = allocate_hours(
+            priority=risk_results['priority'],
+            predicted=predicted_marks,
+            budget=budget,
+            min_h=min_h,
+            max_h=max_h,
+            seed=42
+        )
         
-        # --- STAGE 4: Build Schedule ---
+        # --- STAGE 4: Rule-Based Scheduling ---
         schedule = build_schedule(
             hours=allocation_results['hours'],
             subjects=subjects,
@@ -426,7 +545,6 @@ if run_btn:
             peak_window="09:00-11:00"
         )
         
-        # Save output in session state
         st.session_state.pipeline_results = {
             'predicted_marks': predicted_marks,
             'confidence_array': confidence_array,
@@ -436,9 +554,11 @@ if run_btn:
             'budget': budget
         }
         
-    st.toast("🎯 Optimization pipeline finished successfully!", icon="✨")
+    st.toast("🎯 Optimization pipeline completed successfully!", icon="✨")
 
-# Render Results If Available
+# -----------------------------------------------------------------------------
+# 9. RESULTS DASHBOARD
+# -----------------------------------------------------------------------------
 if st.session_state.pipeline_results is not None:
     res = st.session_state.pipeline_results
     predicted_marks = res['predicted_marks']
@@ -451,250 +571,235 @@ if st.session_state.pipeline_results is not None:
     st.markdown("---")
     st.markdown("### 📊 Optimization Insights & Recommendations")
     
-    # Key Metrics Banner
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1:
-        avg_score = np.mean(predicted_marks)
-        score_color = "#34d399" if avg_score >= 70 else "#fbbf24" if avg_score >= 50 else "#f87171"
+    # KPI Metric Cards
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        avg_score = float(np.mean(predicted_marks))
+        sc_color = "#34d399" if avg_score >= 70 else "#fbbf24" if avg_score >= 50 else "#f87171"
         st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-title">Average Predicted Score</div>
-            <div class="kpi-value" style="color: {score_color};">{avg_score:.1f}%</div>
-            <div class="kpi-sub">Across {len(subjects)} active modules</div>
+        <div class="kpi-box">
+            <div class="kpi-label">Average Predicted Score</div>
+            <div class="kpi-value" style="color: {sc_color};">{avg_score:.1f}%</div>
+            <div class="kpi-desc">Across {len(subjects)} active modules</div>
         </div>
         """, unsafe_allow_html=True)
         
-    with kpi2:
+    with k2:
         st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-title">Weekly Study Budget</div>
-            <div class="kpi-value">{budget:.1f} hrs</div>
-            <div class="kpi-sub">Total allocated weekly study time</div>
+        <div class="kpi-box">
+            <div class="kpi-label">Weekly Study Budget</div>
+            <div class="kpi-value" style="color: #38bdf8;">{budget:.1f} hrs</div>
+            <div class="kpi-desc">Total weekly revision budget</div>
         </div>
         """, unsafe_allow_html=True)
         
-    with kpi3:
-        max_risk_idx = np.argmax(risk_results['priority'])
+    with k3:
+        max_idx = int(np.argmax(risk_results['priority']))
         st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-title">Top Priority Focus</div>
-            <div class="kpi-value" style="color: #f43f5e; font-size: 1.4rem;">{SUBJECT_META[max_risk_idx]['icon']} {subjects[max_risk_idx]}</div>
-            <div class="kpi-sub">Priority Score: {risk_results['priority'][max_risk_idx]:.2f} / 10</div>
+        <div class="kpi-box">
+            <div class="kpi-label">Top Priority Focus</div>
+            <div class="kpi-value" style="color: #fb7185; font-size: 1.55rem;">
+                {SUBJECT_META[max_idx]['icon']} {subjects[max_idx]}
+            </div>
+            <div class="kpi-desc">Priority: {risk_results['priority'][max_idx]:.2f} / 10</div>
         </div>
         """, unsafe_allow_html=True)
         
-    with kpi4:
+    with k4:
+        ga_fit = allocation_results.get('fitness', 0.0)
         st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-title">Scheduled Sessions</div>
-            <div class="kpi-value">{len(schedule)}</div>
-            <div class="kpi-sub">Optimized calendar blocks generated</div>
+        <div class="kpi-box">
+            <div class="kpi-label">GA Objective Fitness</div>
+            <div class="kpi-value" style="color: #a78bfa;">{ga_fit:.1f}</div>
+            <div class="kpi-desc">Score gain over baselines</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br/>", unsafe_allow_html=True)
 
-    # Tabbed Interactive View
-    tab_overview, tab_pred, tab_risk, tab_alloc, tab_raw = st.tabs([
-        "📅 Study Timetable (Stage 4)",
+    # -------------------------------------------------------------------------
+    # TABBED DETAILED VIEWS
+    # -------------------------------------------------------------------------
+    tab_pred, tab_risk, tab_alloc, tab_sched, tab_raw = st.tabs([
         "🎯 Score Predictions (Stage 1)",
         "⚠️ Risk & Cognitive Gaps (Stage 2)",
         "⏱️ Hour Reallocation (Stage 3)",
+        "📅 Study Timetable (Stage 4)",
         "📋 Full Pipeline Data"
     ])
     
-    # TAB 1: Generated Schedule
-    with tab_overview:
-        st.markdown("#### 📅 Generated Weekly Study Plan")
-        st.caption("AI-optimized calendar slots distributed according to difficulty, risk priority, and peak cognitive windows.")
-        
-        sched_df = pd.DataFrame(schedule)
-        
-        t_col1, t_col2 = st.columns([1.8, 1.2])
-        with t_col1:
-            for item in schedule:
-                subj_icon = next((s['icon'] for s in SUBJECT_META if s['name'] == item['subject']), '📚')
-                st.markdown(f"""
-                <div class="schedule-item">
-                    <div>
-                        <span class="schedule-time">🕒 {item.get('start', '09:00')} - {item.get('end', '10:00')}</span>
-                        <div class="schedule-subj">{subj_icon} {item['subject']} ({item.get('minutes', 60)} mins)</div>
-                        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">{item.get('day', 'Day')} • {item.get('reason', 'Optimized Placement')}</div>
-                    </div>
-                    <span class="schedule-badge">📌 {item.get('type', 'study').title()}</span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-        with t_col2:
-            st.markdown("##### ⏱️ Study Time Distribution")
-            fig_pie = px.pie(
-                values=allocation_results['hours'],
-                names=subjects,
-                hole=0.55,
-                color=subjects,
-                color_discrete_map={s['name']: s['color'] for s in SUBJECT_META}
-            )
-            fig_pie.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#cbd5e1"),
-                margin=dict(t=10, b=10, l=10, r=10),
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5)
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-
-    # TAB 2: Predictions
+    # -------------------------------------------------------------------------
+    # TAB 1: PREDICTIONS (STAGE 1)
+    # -------------------------------------------------------------------------
     with tab_pred:
-        st.markdown("#### 🎯 ML Predicted Exam Marks")
-        st.caption("Machine Learning regression estimates based on historical engagement telemetry and weekly study volume.")
+        st.markdown("#### 🎯 Machine Learning Predicted Exam Marks")
+        st.caption("Multilayer Perceptron regression estimates derived from historical telemetry, login consistency, and baseline hours.")
         
-        pred_df = pd.DataFrame({
-            'Subject': subjects,
-            'Predicted Mark': np.round(predicted_marks, 2),
-            'Target Hours': [edited_data[f'hours_{i}'] for i in range(5)],
-            'Confidence': confidence_array
-        })
-        
+        # Plotly Bar Chart
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
             x=subjects,
             y=predicted_marks,
             marker=dict(
                 color=[SUBJECT_META[i]['color'] for i in range(5)],
-                line=dict(color='rgba(255,255,255,0.2)', width=1)
+                line=dict(color='rgba(255,255,255,0.2)', width=1.5)
             ),
             text=[f"{val:.1f}%" for val in predicted_marks],
             textposition='auto',
-            name="Predicted Score"
+            textfont=dict(size=14, color='#ffffff', family="Outfit"),
+            hoverinfo="x+y"
         ))
         
-        # Benchmark line for pass / distinction
-        fig_bar.add_hline(y=50, line_dash="dot", line_color="#fbbf24", annotation_text="Passing (50%)", annotation_font_color="#fbbf24")
-        fig_bar.add_hline(y=75, line_dash="dash", line_color="#34d399", annotation_text="Distinction (75%)", annotation_font_color="#34d399")
+        # Benchmark threshold lines
+        fig_bar.add_hline(
+            y=50, line_dash="dash", line_color="#fbbf24",
+            annotation_text="Passing Benchmark (50%)", annotation_font_color="#fbbf24",
+            annotation_position="top left"
+        )
+        fig_bar.add_hline(
+            y=75, line_dash="dash", line_color="#34d399",
+            annotation_text="Distinction Benchmark (75%)", annotation_font_color="#34d399",
+            annotation_position="top left"
+        )
         
         fig_bar.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#cbd5e1"),
-            yaxis=dict(title="Score (%)", range=[0, 105], gridcolor="rgba(255,255,255,0.06)"),
-            xaxis=dict(title=None),
-            margin=dict(t=30, b=20, l=20, r=20)
+            plot_bgcolor="rgba(15,23,42,0.5)",
+            font=dict(color="#cbd5e1", family="Plus Jakarta Sans"),
+            yaxis=dict(
+                title="Predicted Exam Mark (%)",
+                range=[0, 105],
+                gridcolor="rgba(255,255,255,0.06)",
+                zerolinecolor="rgba(255,255,255,0.1)"
+            ),
+            xaxis=dict(title=None, showgrid=False),
+            margin=dict(t=35, b=20, l=20, r=20),
+            height=380
         )
         st.plotly_chart(fig_bar, use_container_width=True)
         
-        # Detail Cards
+        # Subject Status Metric Cards
         score_cols = st.columns(5)
         for i, sc in enumerate(score_cols):
             with sc:
                 score = predicted_marks[i]
-                tag = "🟢 Strong" if score >= 75 else "🟡 Moderate" if score >= 50 else "🔴 Critical"
-                st.metric(label=f"{SUBJECT_META[i]['name']}", value=f"{score:.1f}%", delta=tag)
+                tag = "🟢 Distinction" if score >= 75 else "🟡 Passing" if score >= 50 else "🔴 At Risk"
+                st.metric(
+                    label=f"{SUBJECT_META[i]['icon']} {SUBJECT_META[i]['name']}",
+                    value=f"{score:.1f}%",
+                    delta=tag
+                )
 
-    # TAB 3: Risk Assessment
+    # -------------------------------------------------------------------------
+    # TAB 2: RISK & COGNITIVE GAPS (STAGE 2)
+    # -------------------------------------------------------------------------
     with tab_risk:
-        st.markdown("#### ⚠️ Cognitive Gap & Priority Risk Assessment")
-        st.caption("Fuzzy inference module cross-examines student confidence with ML predicted performance to detect blind spots.")
+        st.markdown("#### ⚠️ Fuzzy Cognitive Gap & Priority Risk Assessment")
+        st.caption("Mamdani fuzzy inference module cross-references student confidence with predicted marks to expose calibration blindspots.")
         
-        risk_df = pd.DataFrame({
-            'Subject': subjects,
-            'Confidence (1-10)': confidence_array,
-            'Predicted Mark (%)': np.round(predicted_marks, 1),
-            'Priority Score': np.round(risk_results['priority'], 2),
-            'Risk Classification': risk_results['label']
-        })
-        
-        r_col1, r_col2 = st.columns([1.5, 1.5])
+        r_col1, r_col2 = st.columns([1.4, 1.6])
         
         with r_col1:
-            st.dataframe(
-                risk_df.style.background_gradient(subset=['Priority Score'], cmap='Reds'),
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown("##### Diagnostic Classification Table")
+            table_rows = []
+            for i in range(len(subjects)):
+                lbl = risk_results['label'][i]
+                cls_tag = "diag-overconfident" if lbl == 'overconfident' else "diag-anxious" if lbl == 'anxious' else "diag-aligned"
+                table_rows.append({
+                    "Subject": f"{SUBJECT_META[i]['icon']} {subjects[i]}",
+                    "Confidence": f"{confidence_array[i]:.1f} / 10",
+                    "Predicted": f"{predicted_marks[i]:.1f}%",
+                    "Priority": f"{risk_results['priority'][i]:.2f}",
+                    "Classification": f"<span class='diag-pill {cls_tag}'>{lbl}</span>"
+                })
+            
+            df_display = pd.DataFrame(table_rows)
+            st.markdown(df_display.to_html(escape=False, index=False), unsafe_allow_html=True)
+            st.markdown("<br/>", unsafe_allow_html=True)
+            
+            # Natural-language Explanation Accordion
+            with st.expander("💬 View Plain-English Diagnoses & Explanations"):
+                for i in range(len(subjects)):
+                    st.markdown(f"**{SUBJECT_META[i]['icon']} {subjects[i]}:** {risk_results['explanation'][i]}")
             
         with r_col2:
-            fig_scatter = px.scatter(
+            fig_bubble = px.scatter(
                 x=confidence_array,
                 y=predicted_marks,
                 text=subjects,
-                size=risk_results['priority'] + 2,
+                size=risk_results['priority'] + 3,
                 color=subjects,
                 color_discrete_map={s['name']: s['color'] for s in SUBJECT_META},
-                labels={'x': 'Self Confidence (1-10)', 'y': 'Predicted Mark (%)'},
-                title="Confidence vs Predicted Mark (Bubble Size = Risk Priority)"
+                labels={'x': 'Self-Rated Confidence (1–10)', 'y': 'Predicted Mark (%)'},
+                title="Confidence vs. Predicted Mark (Bubble Size = Fuzzy Priority)"
             )
-            fig_scatter.update_traces(textposition='top center')
-            fig_scatter.update_layout(
+            fig_bubble.update_traces(
+                textposition='top center',
+                textfont=dict(color='#f8fafc', size=12, family="Outfit"),
+                marker=dict(line=dict(width=1.5, color='rgba(255,255,255,0.6)'))
+            )
+            fig_bubble.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#cbd5e1"),
+                plot_bgcolor="rgba(15,23,42,0.5)",
+                font=dict(color="#cbd5e1", family="Plus Jakarta Sans"),
                 xaxis=dict(range=[0, 11], gridcolor="rgba(255,255,255,0.06)"),
                 yaxis=dict(range=[0, 105], gridcolor="rgba(255,255,255,0.06)"),
                 margin=dict(t=40, b=20, l=20, r=20),
-                showlegend=False
+                showlegend=False,
+                height=380
             )
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_bubble, use_container_width=True)
 
-    # TAB 4: Allocation Comparison
+    # -------------------------------------------------------------------------
+    # TAB 3: HOUR REALLOCATION (STAGE 3)
+    # -------------------------------------------------------------------------
     with tab_alloc:
-        st.markdown("#### ⏱️ Study Time Optimization Comparison")
-        st.caption("Genetic algorithm / optimizer shifts weekly study hours away from saturated areas toward high-risk subjects.")
+        st.markdown("#### ⏱️ Genetic Algorithm Revision Time Optimization")
+        st.caption("Heuristic search shifts revision hours from saturated topics toward high-priority modules with diminishing returns.")
         
         orig_hours = [edited_data[f'hours_{i}'] for i in range(5)]
         opt_hours = np.round(allocation_results['hours'], 1)
         
-        comp_df = pd.DataFrame({
-            'Subject': subjects,
-            'Original Target (hrs)': orig_hours,
-            'AI Recommended (hrs)': opt_hours,
-            'Adjustment': [f"{opt - orig:+.1f} hrs" for orig, opt in zip(orig_hours, opt_hours)]
-        })
-        
-        fig_alloc = go.Figure()
-        fig_alloc.add_trace(go.Bar(
-            name='Original Target',
+        fig_comp = go.Figure()
+        fig_comp.add_trace(go.Bar(
+            name='Student Target Hours',
             x=subjects,
             y=orig_hours,
-            marker_color='rgba(148, 163, 184, 0.4)'
+            marker=dict(color='rgba(148, 163, 184, 0.35)', line=dict(color='rgba(255,255,255,0.2)', width=1))
         ))
-        fig_alloc.add_trace(go.Bar(
+        fig_comp.add_trace(go.Bar(
             name='AI Optimized Allocation',
             x=subjects,
             y=opt_hours,
-            marker_color='#6366f1'
+            marker=dict(color='#6366f1', line=dict(color='#818cf8', width=1))
         ))
-        fig_alloc.update_layout(
+        fig_comp.update_layout(
             barmode='group',
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#cbd5e1"),
+            plot_bgcolor="rgba(15,23,42,0.5)",
+            font=dict(color="#cbd5e1", family="Plus Jakarta Sans"),
             yaxis=dict(title="Study Hours / Week", gridcolor="rgba(255,255,255,0.06)"),
-            margin=dict(t=20, b=20, l=20, r=20),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            margin=dict(t=25, b=20, l=20, r=20),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            height=360
         )
-        st.plotly_chart(fig_alloc, use_container_width=True)
+        st.plotly_chart(fig_comp, use_container_width=True)
         
-        st.dataframe(comp_df, use_container_width=True, hide_index=True)
-        
-        st.markdown("<br/>", unsafe_allow_html=True)
-        st.markdown("##### 📈 Genetic Algorithm Convergence & Baseline Benchmark")
-        st.caption("Demonstrates optimization progress across 100 generations compared to naive heuristic baselines (Handbook Section 3.6).")
-        
+        # Benchmark Comparison Tiles
+        st.markdown("##### 📈 GA Fitness Benchmark Against Heuristic Baselines")
         baselines = allocation_results.get('baselines', {})
         eq_fit = baselines.get('equal', 0.0)
         prop_fit = baselines.get('proportional', 0.0)
         grd_fit = baselines.get('greedy', 0.0)
-        ga_fit = allocation_results.get('fitness', 0.0)
         
-        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
-        with b_col1:
-            st.metric("🏆 GA Best Fitness", f"{ga_fit:.1f}", delta="Optimal Search")
-        with b_col2:
+        b1, b2, b3, b4 = st.columns(4)
+        with b1:
+            st.metric("🏆 GA Optimal Fitness", f"{ga_fit:.1f}", delta="Optimal Search")
+        with b2:
             st.metric("Equal Split Baseline", f"{eq_fit:.1f}", delta=f"{ga_fit - eq_fit:+.1f} pts", delta_color="inverse")
-        with b_col3:
+        with b3:
             st.metric("Proportional Baseline", f"{prop_fit:.1f}", delta=f"{ga_fit - prop_fit:+.1f} pts", delta_color="inverse")
-        with b_col4:
+        with b4:
             st.metric("Greedy Baseline", f"{grd_fit:.1f}", delta=f"{ga_fit - grd_fit:+.1f} pts", delta_color="inverse")
             
         history = allocation_results.get('history', [])
@@ -721,20 +826,72 @@ if st.session_state.pipeline_results is not None:
                 )
             fig_conv.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#cbd5e1"),
+                plot_bgcolor="rgba(15,23,42,0.5)",
+                font=dict(color="#cbd5e1", family="Plus Jakarta Sans"),
                 xaxis=dict(title="Generation", gridcolor="rgba(255,255,255,0.06)"),
                 yaxis=dict(title="Fitness Score", gridcolor="rgba(255,255,255,0.06)"),
                 margin=dict(t=25, b=20, l=20, r=20),
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                height=320
             )
             st.plotly_chart(fig_conv, use_container_width=True)
 
-    # TAB 5: Raw Pipeline Data
+    # -------------------------------------------------------------------------
+    # TAB 4: STUDY TIMETABLE (STAGE 4)
+    # -------------------------------------------------------------------------
+    with tab_sched:
+        st.markdown("#### 📅 AI-Generated Weekly Revision Timetable")
+        st.caption("Daily calendar schedule formatted from allocated revision hours according to cognitive peak windows.")
+        
+        t1, t2 = st.columns([1.8, 1.2])
+        with t1:
+            for item in schedule:
+                subj_icon = next((s['icon'] for s in SUBJECT_META if s['name'] == item['subject']), '📚')
+                subj_color = next((s['color'] for s in SUBJECT_META if s['name'] == item['subject']), '#6366f1')
+                st.markdown(f"""
+                <div class="schedule-card" style="border-left: 4px solid {subj_color};">
+                    <div>
+                        <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem;">
+                            🕒 {item.get('start', '09:00')} - {item.get('end', '10:00')} ({item.get('minutes', 60)} mins)
+                        </div>
+                        <div style="font-weight: 600; color: #f8fafc; font-size: 1rem; margin-top: 2px;">
+                            {subj_icon} {item['subject']}
+                        </div>
+                        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">
+                            {item.get('day', 'Day')} • {item.get('reason', 'Optimized Placement')}
+                        </div>
+                    </div>
+                    <span class="lms-pill">📌 {item.get('type', 'study').title()}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        with t2:
+            st.markdown("##### ⏱️ Study Time Share")
+            fig_pie = px.pie(
+                values=allocation_results['hours'],
+                names=subjects,
+                hole=0.6,
+                color=subjects,
+                color_discrete_map={s['name']: s['color'] for s in SUBJECT_META}
+            )
+            fig_pie.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#cbd5e1", family="Plus Jakarta Sans"),
+                margin=dict(t=10, b=10, l=10, r=10),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                height=340
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 5: RAW PIPELINE TELEMETRY
+    # -------------------------------------------------------------------------
     with tab_raw:
-        st.markdown("#### 📋 Diagnostic Stubs & Raw Data Structure")
-        st.caption("Developer inspection of exact dictionary outputs and payloads from all 4 pipeline stages.")
+        st.markdown("#### 📋 Diagnostic JSON Payloads & Architecture Telemetry")
+        st.caption("Developer view verifying exact frozen contract dictionary outputs across Stages 1 through 4.")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -745,14 +902,14 @@ if st.session_state.pipeline_results is not None:
                 "risk_labels": risk_results['label']
             })
         with c2:
-            st.write("**Stage 3 Allocation Metrics:**")
+            st.write("**Stage 3 GA Allocation Metrics:**")
             st.json({
                 "allocated_hours": list(np.round(allocation_results['hours'], 2)),
                 "optimizer_fitness": allocation_results.get('fitness', 0),
                 "baselines": allocation_results.get('baselines', {})
             })
             
-        st.write("**Stage 4 Schedule Data Table:**")
-        st.dataframe(sched_df, use_container_width=True)
+        st.write("**Stage 4 Schedule Block Data:**")
+        st.dataframe(pd.DataFrame(schedule), use_container_width=True)
 else:
     st.info("💡 Click **'🚀 Run Full Optimization Pipeline'** above to compute predictions and generate your personalized schedule.")
