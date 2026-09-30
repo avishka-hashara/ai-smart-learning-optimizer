@@ -526,7 +526,7 @@ if run_btn:
         # --- STAGE 3: Genetic Algorithm Reallocation ---
         budget = float(sum([edited_data[f'hours_{i}'] for i in range(5)]))
         min_h = np.full(len(subjects), 2.0)
-        max_h = np.full(len(subjects), 15.0)
+        max_h = np.full(len(subjects), 20.0)
         allocation_results = allocate_hours(
             priority=risk_results['priority'],
             predicted=predicted_marks,
