@@ -10,10 +10,7 @@ import plotly.express as px
 # Ensure the project root is in the Python path for reliable module imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.prediction.predict import predict_scores
-from src.fuzzy.risk import assess_risk
-from src.optimizer.allocate import allocate_hours
-from src.scheduler.schedule import build_schedule
+from app.config import PERSONAS, SUBJECT_META, SUBJECTS, run_pipeline
 
 # -----------------------------------------------------------------------------
 # 1. PAGE SETUP & METADATA
@@ -330,35 +327,7 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 # 3. STUDENT PERSONAS & SUBJECT CONFIGURATION
 # -----------------------------------------------------------------------------
-PERSONAS = {
-    "The Overconfident Student": {
-        "description": "High self-rated confidence despite borderline predicted performance in technical subjects.",
-        "avatar": "🦁",
-        "conf": [9.0, 5.0, 6.0, 7.0, 5.0],
-        "hours": [12.0, 15.0, 8.0, 20.0, 5.0]
-    },
-    "The Anxious High Achiever": {
-        "description": "Consistently strong performance telemetry despite severe under-confidence in core subjects.",
-        "avatar": "🦉",
-        "conf": [3.0, 8.0, 7.0, 8.0, 9.0],
-        "hours": [25.0, 20.0, 22.0, 30.0, 18.0]
-    },
-    "The Uniformly Weak Student": {
-        "description": "Critical low attendance and engagement requiring urgent structured study reallocations.",
-        "avatar": "🌱",
-        "conf": [2.0, 3.0, 2.0, 4.0, 2.0],
-        "hours": [5.0, 4.0, 6.0, 5.0, 3.0]
-    }
-}
-
-SUBJECT_META = [
-    {"name": "Databases", "icon": "💾", "color": "#38bdf8", "accent": "rgba(56, 189, 248, 0.4)"},
-    {"name": "Networks", "icon": "🌐", "color": "#818cf8", "accent": "rgba(129, 140, 248, 0.4)"},
-    {"name": "Statistics", "icon": "📊", "color": "#fb7185", "accent": "rgba(251, 113, 133, 0.4)"},
-    {"name": "Maths", "icon": "📐", "color": "#facc15", "accent": "rgba(250, 204, 21, 0.4)"},
-    {"name": "Ethics", "icon": "⚖️", "color": "#4ade80", "accent": "rgba(74, 222, 128, 0.4)"},
-]
-subjects = [s["name"] for s in SUBJECT_META]
+subjects = SUBJECTS
 
 # -----------------------------------------------------------------------------
 # 4. PERSISTENT STATE INITIALIZATION
@@ -486,23 +455,6 @@ for i, col in enumerate(cols):
             help="1 = Very Low Confidence, 10 = Mastered"
         )
 
-# Construct standard pipeline features DataFrame matching trained model exactly
-df_features = pd.DataFrame({
-    'subject': subjects,
-    'study_hours_week': [edited_data[f'hours_{i}'] for i in range(5)],
-    'quiz_attempts': [5] * 5, 
-    'consecutive_logins': [10] * 5,
-    'material_access_freq': [20] * 5,
-    'improvement_rate': [1.2] * 5,
-    'score_consistency': [0.6] * 5,
-    'time_per_question': [1.5] * 5,
-    'class_size': [30] * 5,
-    'resource_index': [50.0] * 5,
-    'faculty_ratio': [0.1] * 5,
-    'peak_study_time': [14] * 5,
-    'weekend_study_ratio': [0.5] * 5,
-    'difficulty_indicator': [2] * 5
-})
 
 st.markdown("<br/>", unsafe_allow_html=True)
 
@@ -515,44 +467,10 @@ with btn_col2:
 
 if run_btn:
     with st.spinner("Executing 4-Stage AI Optimization Pipeline..."):
-        confidence_array = np.array([edited_data[f'conf_{i}'] for i in range(5)])
-        
-        # --- STAGE 1: ML Score Prediction ---
-        predicted_marks = predict_scores(df_features)
-        
-        # --- STAGE 2: Fuzzy Inference Risk Reasoning ---
-        risk_results = assess_risk(predicted_marks, confidence_array)
-        
-        # --- STAGE 3: Genetic Algorithm Reallocation ---
-        budget = float(sum([edited_data[f'hours_{i}'] for i in range(5)]))
-        min_h = np.full(len(subjects), 2.0)
-        max_h = np.full(len(subjects), 15.0)
-        allocation_results = allocate_hours(
-            priority=risk_results['priority'],
-            predicted=predicted_marks,
-            budget=budget,
-            min_h=min_h,
-            max_h=max_h,
-            seed=42
+        st.session_state.pipeline_results = run_pipeline(
+            hours=[edited_data[f'hours_{i}'] for i in range(5)],
+            confidence=[edited_data[f'conf_{i}'] for i in range(5)]
         )
-        
-        # --- STAGE 4: Rule-Based Scheduling ---
-        schedule = build_schedule(
-            hours=allocation_results['hours'],
-            subjects=subjects,
-            days=7,
-            daily_limits=8.0,
-            peak_window="09:00-11:00"
-        )
-        
-        st.session_state.pipeline_results = {
-            'predicted_marks': predicted_marks,
-            'confidence_array': confidence_array,
-            'risk_results': risk_results,
-            'allocation_results': allocation_results,
-            'schedule': schedule,
-            'budget': budget
-        }
         
     st.toast("🎯 Optimization pipeline completed successfully!", icon="✨")
 
