@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Learning Optimizer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">🧠</div>
+        <div>
+          <div class="brand-name">SmartLearn</div>
+          <div class="brand-sub">Performance Optimizer</div>
+        </div>
+      </div>
+
+      <section class="side-section">
+        <h2 class="side-label">Student persona</h2>
+        <div class="persona-list" id="personaList" role="radiogroup" aria-label="Student persona"></div>
+      </section>
+
+      <section class="side-section">
+        <h2 class="side-label">Integrations</h2>
+        <button class="btn btn-ghost btn-block" id="syncBtn" type="button">
+          <span class="btn-icon" aria-hidden="true">⟳</span> Sync LMS telemetry
+        </button>
+        <label class="toggle">
+          <input type="checkbox" id="liveToggle">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span>Live mode <small>auto re-run on change</small></span>
+        </label>
+      </section>
+
+      <section class="side-section">
+        <h2 class="side-label">Pipeline status</h2>
+        <ul class="status-list">
+          <li><span class="dot dot-live"></span>Stage 1 · ML Predictor</li>
+          <li><span class="dot dot-live"></span>Stage 2 · Fuzzy Risk</li>
+          <li><span class="dot dot-live"></span>Stage 3 · GA Optimizer</li>
+          <li><span class="dot dot-live"></span>Stage 4 · Scheduler</li>
+        </ul>
+      </section>
+
+      <div class="side-foot">
+        <button class="btn btn-ghost btn-sm" id="themeBtn" type="button" aria-label="Toggle colour theme">◐ Theme</button>
+        <span class="muted" id="apiStatus">Connecting…</span>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN ================= -->
+    <main class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost btn-sm menu-btn" id="menuBtn" type="button" aria-label="Open menu">☰</button>
+        <div class="topbar-text">
+          <h1>Smart Learning &amp; Performance Optimizer</h1>
+          <p>ML regression → Mamdani fuzzy risk → Genetic Algorithm reallocation → weekly schedule.</p>
+        </div>
+        <button class="btn btn-primary" id="runBtn" type="button">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="run-label">Run pipeline</span>
+          <kbd>Ctrl ↵</kbd>
+        </button>
+      </header>
+
+      <!-- Stepper -->
+      <ol class="stepper" id="stepper">
+        <li data-stage="1"><span class="step-num">1</span><div><b>Predict</b><small>MLP regression</small></div></li>
+        <li data-stage="2"><span class="step-num">2</span><div><b>Assess risk</b><small>Mamdani fuzzy</small></div></li>
+        <li data-stage="3"><span class="step-num">3</span><div><b>Optimize</b><small>Genetic algorithm</small></div></li>
+        <li data-stage="4"><span class="step-num">4</span><div><b>Schedule</b><small>Rule-based</small></div></li>
+      </ol>
+
+      <!-- Inputs -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Semester telemetry &amp; self-assessment</h2>
+            <p class="muted">Weekly target hours and perceived confidence per subject.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="resetBtn" type="button">Reset to persona</button>
+        </div>
+        <div class="subject-grid" id="subjectGrid"></div>
+        <div class="budget-bar">
+          <div class="budget-meta">
+            <span>Weekly budget</span>
+            <strong id="budgetTotal">0 h</strong>
+          </div>
+          <div class="stack-bar" id="budgetStack" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- Error banner -->
+      <div class="alert" id="errorBox" role="alert" hidden></div>
+
+      <!-- Empty state -->
+      <section class="empty" id="emptyState">
+        <div class="empty-icon">🚀</div>
+        <h2>Ready when you are</h2>
+        <p class="muted">Run the pipeline to see predictions, risk diagnoses, the optimised hour split and your timetable.</p>
+      </section>
+
+      <!-- Results -->
+      <section id="results" hidden>
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="tabs" role="tablist" aria-label="Result views">
+          <button role="tab" id="tab-pred" aria-controls="panel-pred" aria-selected="true">🎯 Predictions</button>
+          <button role="tab" id="tab-risk" aria-controls="panel-risk" aria-selected="false" tabindex="-1">⚠️ Risk &amp; gaps</button>
+          <button role="tab" id="tab-alloc" aria-controls="panel-alloc" aria-selected="false" tabindex="-1">⏱️ Reallocation</button>
+          <button role="tab" id="tab-sched" aria-controls="panel-sched" aria-selected="false" tabindex="-1">📅 Timetable</button>
+          <button role="tab" id="tab-raw" aria-controls="panel-raw" aria-selected="false" tabindex="-1">{ } Raw data</button>
+        </div>
+
+        <!-- Stage 1 -->
+        <div class="tab-panel" role="tabpanel" id="panel-pred" aria-labelledby="tab-pred">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Predicted exam marks</h3>
+                <p class="muted">Multilayer perceptron estimates from study hours and engagement telemetry.</p>
+              </div>
+            </div>
+            <div class="chart" id="chartPred"></div>
+          </div>
+          <div class="score-grid" id="scoreGrid"></div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="tab-panel" role="tabpanel" id="panel-risk" aria-labelledby="tab-risk" hidden>
+          <div class="split">
+            <div class="panel">
+              <h3>Diagnostic classification</h3>
+              <p class="muted">Confidence vs. predicted mark, run through the fuzzy rule base.</p>
+              <div class="table-wrap"><table class="data-table" id="riskTable"></table></div>
+            </div>
+            <div class="panel">
+              <h3>Calibration map</h3>
+              <p class="muted">Bubble size = fuzzy priority.</p>
+              <div class="chart" id="chartBubble"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Plain-English diagnoses</h3>
+            <div class="explain-list" id="explainList"></div>
+          </div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="tab-panel" role="tabpanel" id="panel-alloc" aria-labelledby="tab-alloc" hidden>
+          <div class="split">
+            <div class="panel">
+              <h3>Your plan vs. optimised plan</h3>
+              <p class="muted">Hours shift from saturated subjects toward high-priority ones.</p>
+              <div class="chart" id="chartAlloc"></div>
+            </div>
+            <div class="panel">
+              <h3>Hour changes</h3>
+              <div class="delta-list" id="deltaList"></div>
+            </div>
+          </div>
+          <div class="baseline-grid" id="baselineGrid"></div>
+          <div class="panel">
+            <h3>GA convergence</h3>
+            <p class="muted">Best fitness per generation against heuristic baselines.</p>
+            <div class="chart chart-sm" id="chartConv"></div>
+          </div>
+        </div>
+
+        <!-- Stage 4 -->
+        <div class="tab-panel" role="tabpanel" id="panel-sched" aria-labelledby="tab-sched" hidden>
+          <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Weekly revision timetable</h3>
+                  <p class="muted" id="schedNote"></p>
+                </div>
+              </div>
+              <div class="week-scroll"><div class="week" id="weekGrid"></div></div>
+          </div>
+          <div class="split">
+            <div class="panel">
+              <h3>Study time share</h3>
+              <div class="chart chart-sm" id="chartPie"></div>
+            </div>
+            <div class="panel">
+              <h3>Daily load</h3>
+              <p class="muted">Scheduled hours per day.</p>
+              <div class="chart chart-sm" id="chartDaily"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw -->
+        <div class="tab-panel" role="tabpanel" id="panel-raw" aria-labelledby="tab-raw" hidden>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>Pipeline payload</h3>
+                <p class="muted" id="rawMeta"></p>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-ghost btn-sm" id="copyBtn" type="button">Copy JSON</button>
+                <button class="btn btn-ghost btn-sm" id="downloadBtn" type="button">Download</button>
+              </div>
+            </div>
+            <pre class="code" id="rawJson"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+</body>
+</html>

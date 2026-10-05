@@ -1,0 +1,12 @@
+# Environments
+venv/
+__pycache__/
+
+# Data (Do not commit data files per handbook rules)
+data/*.csv
+
+# Models
+models/*.joblib
+
+# Local virtual environment
+.venv/
