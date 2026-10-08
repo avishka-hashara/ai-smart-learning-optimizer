@@ -62,8 +62,8 @@ DEFAULT_DIFFICULTY = 2
 def build_features(hours, subjects=None, difficulty=None):
     """Stage 1 feature frame; non-hour features use fixed demo defaults.
 
-    The model one-hot encodes `subject` with handle_unknown='ignore', so any
-    subject name is accepted; unseen names just contribute no subject offset.
+    Any subject name is accepted. Subjects the model was not trained on are
+    predicted as the average over the known subjects (see predict_scores).
     """
     subjects = list(subjects) if subjects is not None else SUBJECTS
     n = len(subjects)
