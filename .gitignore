@@ -10,3 +10,10 @@ models/*.joblib
 
 # Local virtual environment
 .venv/
+docs/viva_prep_member1.md
+REPORT.md
+
+# Local database and secrets
+*.db
+*.db-journal
+.env

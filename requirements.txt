@@ -10,3 +10,13 @@ plotly==5.20.0
 matplotlib==3.8.3
 joblib==1.3.2
 torch==2.2.1
+
+# Accounts & persistence
+sqlalchemy>=2.0
+alembic>=1.13
+pyjwt>=2.8
+bcrypt>=4.1
+email-validator>=2.1
+# Tests
+pytest>=8
+httpx>=0.27

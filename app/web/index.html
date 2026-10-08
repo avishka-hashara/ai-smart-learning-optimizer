@@ -13,7 +13,49 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="shell">
+  <!-- ================= SIGN IN / REGISTER ================= -->
+  <section class="auth" id="authView" hidden>
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-mark">🧠</div>
+        <div>
+          <div class="brand-name">SmartLearn</div>
+          <div class="brand-sub">Performance Optimizer</div>
+        </div>
+      </div>
+      <div class="auth-intro">
+        <h1 id="authTitle">Welcome back</h1>
+        <p class="muted">Check in once a week. We predict your marks, flag where your confidence and performance disagree, and rebuild your study plan.</p>
+      </div>
+      <div class="seg" role="tablist" aria-label="Account">
+        <button type="button" role="tab" id="authTabLogin" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="authTabRegister" aria-selected="false">Create account</button>
+      </div>
+      <form class="auth-form" id="authForm" novalidate>
+        <label class="input-field" id="nameField" hidden>
+          <span>Name</span>
+          <input type="text" name="name" autocomplete="name" maxlength="80">
+        </label>
+        <label class="input-field">
+          <span>Email</span>
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label class="input-field">
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required minlength="8" maxlength="72">
+          <small class="muted" id="pwHint" hidden>At least 8 characters.</small>
+        </label>
+        <div class="alert" id="authError" role="alert" hidden></div>
+        <button class="btn btn-primary btn-block" type="submit" id="authSubmit">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="auth-submit-label">Sign in</span>
+        </button>
+      </form>
+      <p class="auth-alt muted">Just looking? <a href="#demo" id="demoLink">Try the demo with sample students →</a></p>
+    </div>
+  </section>
+
+  <div class="shell" id="shell" hidden>
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -24,12 +66,32 @@
         </div>
       </div>
 
-      <section class="side-section">
+      <!-- Signed-in user -->
+      <section class="side-section" data-show="user">
+        <div class="side-row">
+          <h2 class="side-label">My subjects</h2>
+          <button class="btn btn-ghost btn-sm" id="manageBtn" type="button">Edit</button>
+        </div>
+        <ul class="mini-list" id="subjectList"></ul>
+      </section>
+
+      <section class="side-section" data-show="user">
+        <h2 class="side-label">Weekly history</h2>
+        <ul class="history-list" id="historyList"></ul>
+      </section>
+
+      <!-- Demo -->
+      <div class="demo-banner" data-show="demo">
+        <b>Demo mode</b> Sample students, nothing is saved.
+        <a href="#" id="exitDemo">Sign in to save your own plans</a>
+      </div>
+
+      <section class="side-section" data-show="demo">
         <h2 class="side-label">Student persona</h2>
         <div class="persona-list" id="personaList" role="radiogroup" aria-label="Student persona"></div>
       </section>
 
-      <section class="side-section">
+      <section class="side-section" data-show="demo">
         <h2 class="side-label">Integrations</h2>
         <button class="btn btn-ghost btn-block" id="syncBtn" type="button">
           <span class="btn-icon" aria-hidden="true">⟳</span> Sync LMS telemetry
@@ -41,7 +103,7 @@
         </label>
       </section>
 
-      <section class="side-section">
+      <section class="side-section" data-show="demo">
         <h2 class="side-label">Pipeline status</h2>
         <ul class="status-list">
           <li><span class="dot dot-live"></span>Stage 1 · ML Predictor</li>
@@ -50,6 +112,15 @@
           <li><span class="dot dot-live"></span>Stage 4 · Scheduler</li>
         </ul>
       </section>
+
+      <div class="account" data-show="user">
+        <div class="account-avatar" id="accountAvatar" aria-hidden="true"></div>
+        <div class="account-text">
+          <div class="account-name" id="accountName"></div>
+          <div class="account-email muted" id="accountEmail"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">Sign out</button>
+      </div>
 
       <div class="side-foot">
         <button class="btn btn-ghost btn-sm" id="themeBtn" type="button" aria-label="Toggle colour theme">◐ Theme</button>
@@ -62,8 +133,8 @@
       <header class="topbar">
         <button class="btn btn-ghost btn-sm menu-btn" id="menuBtn" type="button" aria-label="Open menu">☰</button>
         <div class="topbar-text">
-          <h1>Smart Learning &amp; Performance Optimizer</h1>
-          <p>ML regression → Mamdani fuzzy risk → Genetic Algorithm reallocation → weekly schedule.</p>
+          <h1 id="pageTitle">Smart Learning &amp; Performance Optimizer</h1>
+          <p id="pageSub">ML regression → Mamdani fuzzy risk → Genetic Algorithm reallocation → weekly schedule.</p>
         </div>
         <button class="btn btn-primary" id="runBtn" type="button">
           <span class="spinner" aria-hidden="true"></span>
@@ -81,13 +152,19 @@
       </ol>
 
       <!-- Inputs -->
-      <section class="panel">
+      <section class="panel" id="inputPanel">
         <div class="panel-head">
           <div>
-            <h2>Semester telemetry &amp; self-assessment</h2>
-            <p class="muted">Weekly target hours and perceived confidence per subject.</p>
+            <h2 id="inputTitle">Semester telemetry &amp; self-assessment</h2>
+            <p class="muted" id="inputSub">Weekly target hours and perceived confidence per subject.</p>
           </div>
-          <button class="btn btn-ghost btn-sm" id="resetBtn" type="button">Reset to persona</button>
+          <div class="btn-row">
+            <label class="week-pick" data-show="user">
+              <span>Week of</span>
+              <input type="date" id="weekInput">
+            </label>
+            <button class="btn btn-ghost btn-sm" id="resetBtn" type="button" data-show="demo">Reset to persona</button>
+          </div>
         </div>
         <div class="subject-grid" id="subjectGrid"></div>
         <div class="budget-bar">
@@ -105,8 +182,16 @@
       <!-- Empty state -->
       <section class="empty" id="emptyState">
         <div class="empty-icon">🚀</div>
-        <h2>Ready when you are</h2>
-        <p class="muted">Run the pipeline to see predictions, risk diagnoses, the optimised hour split and your timetable.</p>
+        <h2 id="emptyTitle">Ready when you are</h2>
+        <p class="muted" id="emptyText">Run the pipeline to see predictions, risk diagnoses, the optimised hour split and your timetable.</p>
+      </section>
+
+      <!-- First-run: no subjects yet -->
+      <section class="empty onboarding" id="noSubjects" hidden>
+        <div class="empty-icon">📚</div>
+        <h2>Add the subjects you're studying</h2>
+        <p class="muted">Add each module with how hard it is and its exam date if you know it. Then you can do your first weekly check-in.</p>
+        <button class="btn btn-primary" id="addFirstBtn" type="button">Add subjects</button>
       </section>
 
       <!-- Results -->
@@ -219,6 +304,38 @@
       </section>
     </main>
   </div>
+
+  <!-- ================= SUBJECT MANAGER ================= -->
+  <dialog class="dialog" id="subjectDialog" aria-labelledby="subjectDialogTitle">
+    <div class="dialog-head">
+      <div>
+        <h2 id="subjectDialogTitle">My subjects</h2>
+        <p class="muted">Difficulty feeds the prediction model. Subjects with closer exams are scheduled earlier in the week.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" id="dialogClose" aria-label="Close">✕</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table subject-table">
+        <thead><tr><th>Subject</th><th>Difficulty</th><th>Exam date</th><th><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody id="subjectRows"></tbody>
+      </table>
+    </div>
+    <form class="add-subject" id="addSubjectForm" novalidate>
+      <input type="text" name="name" placeholder="e.g. Operating Systems" maxlength="60" aria-label="New subject name" required>
+      <select name="difficulty" aria-label="Difficulty">
+        <option value="1">Easy</option>
+        <option value="2" selected>Medium</option>
+        <option value="3">Hard</option>
+      </select>
+      <input type="date" name="exam_date" aria-label="Exam date (optional)">
+      <button class="btn btn-primary btn-sm" type="submit">Add</button>
+    </form>
+    <div class="alert" id="subjectError" role="alert" hidden></div>
+    <div class="dialog-foot">
+      <button class="link-danger" type="button" id="deleteAccountBtn">Delete my account and data</button>
+      <button class="btn btn-ghost" type="button" id="dialogDone">Done</button>
+    </div>
+  </dialog>
 
   <div class="scrim" id="scrim" hidden></div>
   <div class="toast-stack" id="toasts" aria-live="polite"></div>

@@ -4,15 +4,30 @@
    State
    ========================================================================= */
 const state = {
-  meta: null,          // /api/meta payload
-  persona: null,       // active persona name
-  hours: [],
+  mode: null,          // 'user' (signed in) | 'demo' (personas, nothing saved)
+  meta: null,          // /api/meta payload (demo)
+  persona: null,       // active persona name (demo)
+  user: null,          // /api/me
+  userMeta: null,      // /api/me/meta: input ranges, current week
+  subjects: [],        // the user's active subjects
+  checkins: [],        // /api/checkins summaries, newest week first
+  viewing: null,       // id of the check-in whose plan is on screen
+  hours: [],           // inputs, aligned with inputSubjects()
   conf: [],
   logins: [],
-  result: null,        // last /api/run payload
+  result: null,        // plan payload being shown
   running: false,
   activeTab: 'pred',
 };
+
+const DEFAULT_HOURS = 5;
+const DEFAULT_CONF = 5;
+const DIFFICULTY = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+
+// Subjects behind the input cards / the plan currently on screen
+const inputSubjects = () => (state.mode === 'user' ? state.subjects : state.meta.subjects);
+const resultSubjects = () => state.result.subject_meta;
+const inputRanges = () => (state.mode === 'user' ? state.userMeta : state.meta);
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -55,18 +70,42 @@ function toast(msg) {
   setTimeout(() => { node.classList.add('out'); setTimeout(() => node.remove(), 300); }, 2600);
 }
 
-async function api(path, body) {
-  const res = await fetch(path, body === undefined ? {} : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
+async function api(path, body, method) {
+  const opts = { method: method || (body === undefined ? 'GET' : 'POST') };
+  if (body !== undefined) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = res.status === 204 ? null : await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail;
-    throw new Error(detail || `Request failed (${res.status})`);
+    const detail = Array.isArray(data?.detail)
+      ? data.detail.map(d => `${d.loc?.slice(-1)[0] ?? ''}: ${d.msg}`.replace(/^: /, '')).join('; ')
+      : data?.detail;
+    const err = new Error(detail || `Request failed (${res.status})`);
+    err.status = res.status;
+    // Session expired or revoked mid-use: back to the sign-in screen
+    if (res.status === 401 && state.mode === 'user' && !path.startsWith('/api/auth/')) {
+      showAuth('login', 'Your session has ended. Please sign in again.');
+    }
+    throw err;
   }
   return data;
+}
+
+function fmtWeek(iso) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function mondayOf(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function daysUntil(iso) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((new Date(`${iso}T00:00:00`) - today) / 86400000);
 }
 
 function scoreBand(v) {
@@ -160,15 +199,18 @@ function onInputChanged() {
 
 function renderSubjects() {
   const grid = $('#subjectGrid');
-  const [hMin, hMax] = state.meta.hours_range;
-  const [cMin, cMax] = state.meta.conf_range;
+  const [hMin, hMax] = inputRanges().hours_range;
+  const [cMin, cMax] = inputRanges().conf_range;
   grid.innerHTML = '';
 
-  state.meta.subjects.forEach((s, i) => {
+  inputSubjects().forEach((s, i) => {
+    const pill = state.mode === 'demo'
+      ? `<span class="pill" title="LMS logins this week">📡 ${state.logins[i]}</span>`
+      : s.exam_date ? examPill(s.exam_date) : '';
     const card = el('div', { class: 'subject', style: { '--c': s.color } }, `
       <div class="subject-top">
         <span class="subject-name">${s.icon} ${esc(s.name)}</span>
-        <span class="pill" title="LMS logins this week">📡 ${state.logins[i]}</span>
+        ${pill}
       </div>
       <div class="field">
         <label for="h${i}">Hours / week</label>
@@ -220,7 +262,7 @@ function renderBudget() {
   $('#budgetTotal').textContent = `${total.toFixed(0)} h`;
   const stack = $('#budgetStack');
   stack.innerHTML = '';
-  state.meta.subjects.forEach((s, i) => {
+  inputSubjects().forEach((s, i) => {
     stack.append(el('span', {
       title: `${s.name}: ${state.hours[i]} h`,
       style: { flexGrow: state.hours[i], background: s.color },
@@ -240,8 +282,11 @@ function setStepper(stage) {
   });
 }
 
+const runLabel = () => (state.mode === 'user' ? 'Save check-in' : 'Run pipeline');
+
 async function runPipeline() {
-  if (state.running) return;
+  if (state.running || !state.mode) return;
+  if (state.mode === 'user' && !state.subjects.length) return;
   state.running = true;
   const btn = $('#runBtn');
   btn.classList.add('is-loading');
@@ -255,11 +300,16 @@ async function runPipeline() {
   const ticker = setInterval(() => { if (stage < 4) setStepper(++stage); }, 220);
 
   try {
-    state.result = await api('/api/run', { hours: state.hours, confidence: state.conf });
+    if (state.mode === 'user') {
+      await saveCheckin();
+    } else {
+      state.result = await api('/api/run', { hours: state.hours, confidence: state.conf });
+    }
     clearInterval(ticker);
     setStepper(5);
     renderResults();
-    if (!$('#liveToggle').checked) toast(`✨ Pipeline finished in ${state.result.timings.total_ms} ms`);
+    if (state.mode === 'user') toast(`✅ Check-in saved for the week of ${fmtWeek($('#weekInput').value)}`);
+    else if (!$('#liveToggle').checked) toast(`✨ Pipeline finished in ${state.result.timings.total_ms} ms`);
   } catch (e) {
     clearInterval(ticker);
     setStepper(0);
@@ -269,14 +319,22 @@ async function runPipeline() {
     state.running = false;
     btn.classList.remove('is-loading');
     btn.disabled = false;
-    $('.run-label', btn).textContent = 'Run pipeline';
+    $('.run-label', btn).textContent = runLabel();
   }
 }
 
 function clearResults() {
   state.result = null;
   $('#results').hidden = true;
-  $('#emptyState').hidden = false;
+  const noSubjects = state.mode === 'user' && !state.subjects.length;
+  $('#emptyState').hidden = noSubjects;
+  if (state.mode === 'user') {
+    $('#emptyTitle').textContent = 'No plan for this week yet';
+    $('#emptyText').textContent = 'Set how many hours you spent on each subject and how confident you feel, then save your check-in to get this week’s plan.';
+  } else {
+    $('#emptyTitle').textContent = 'Ready when you are';
+    $('#emptyText').textContent = 'Run the pipeline to see predictions, risk diagnoses, the optimised hour split and your timetable.';
+  }
   setStepper(0);
 }
 
@@ -299,7 +357,7 @@ function renderResults() {
 
 function renderKpis() {
   const r = state.result;
-  const subj = state.meta.subjects;
+  const subj = resultSubjects();
   const avg = r.predicted.reduce((a, b) => a + b, 0) / r.predicted.length;
   const top = r.risk.priority.indexOf(Math.max(...r.risk.priority));
   const bestBaseline = Math.max(...Object.values(r.allocation.baselines));
@@ -322,7 +380,7 @@ function renderKpis() {
 
 function renderScores() {
   const r = state.result;
-  $('#scoreGrid').innerHTML = state.meta.subjects.map((s, i) => {
+  $('#scoreGrid').innerHTML = resultSubjects().map((s, i) => {
     const v = r.predicted[i];
     const b = scoreBand(v);
     return `
@@ -337,7 +395,7 @@ function renderScores() {
 
 function renderRiskTable() {
   const r = state.result;
-  const rows = state.meta.subjects.map((s, i) => {
+  const rows = resultSubjects().map((s, i) => {
     const lbl = r.risk.label[i];
     const p = r.risk.priority[i];
     return `<tr>
@@ -355,7 +413,7 @@ function renderRiskTable() {
 
 function renderExplanations() {
   const r = state.result;
-  $('#explainList').innerHTML = state.meta.subjects.map((s, i) => `
+  $('#explainList').innerHTML = resultSubjects().map((s, i) => `
     <div class="explain" style="--c:${s.color}">
       <div class="explain-head">
         <span>${s.icon} ${esc(s.name)}</span>
@@ -369,7 +427,7 @@ function renderDeltas() {
   const r = state.result;
   const deltas = r.allocation.hours.map((h, i) => h - r.input_hours[i]);
   const maxAbs = Math.max(1, ...deltas.map(Math.abs));
-  $('#deltaList').innerHTML = state.meta.subjects.map((s, i) => {
+  $('#deltaList').innerHTML = resultSubjects().map((s, i) => {
     const d = deltas[i];
     const w = (Math.abs(d) / maxAbs) * 50;
     const bar = d >= 0
@@ -428,7 +486,7 @@ function layoutLanes(items) {
 
 function renderWeek() {
   const sched = state.result.schedule;
-  const colorOf = Object.fromEntries(state.meta.subjects.map(s => [s.name, s]));
+  const colorOf = Object.fromEntries(resultSubjects().map(s => [s.name, s]));
   const items = sched.map(b => ({ ...b, s: toMin(b.start), e: toMin(b.end) }));
 
   const startH = Math.min(7, ...items.map(b => Math.floor(b.s / 60)));
@@ -502,7 +560,10 @@ function renderRaw() {
   const r = state.result;
   const json = JSON.stringify(r, null, 2);
   $('#rawJson').innerHTML = highlightJson(json);
-  $('#rawMeta').textContent = `${state.persona} · ${r.timings.total_ms} ms · ${(json.length / 1024).toFixed(1)} KB`;
+  const source = state.mode === 'demo'
+    ? `${state.persona} · ${r.timings.total_ms} ms`
+    : `Week of ${fmtWeek($('#weekInput').value)}`;
+  $('#rawMeta').textContent = `${source} · ${(json.length / 1024).toFixed(1)} KB`;
 }
 
 /* ---------- Plotly charts ---------- */
@@ -534,7 +595,7 @@ function hline(y, color, label, dash = 'dash') {
 function renderCharts() {
   if (!window.Plotly || !state.result) return;
   const r = state.result;
-  const subj = state.meta.subjects;
+  const subj = resultSubjects();
   const names = subj.map(s => s.name);
   const colors = subj.map(s => s.color);
 
@@ -642,7 +703,7 @@ function renderCharts() {
    Tabs (WAI-ARIA tabs pattern)
    ========================================================================= */
 function initTabs() {
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
   const select = tab => {
     for (const t of tabs) {
       const on = t === tab;
@@ -670,6 +731,357 @@ function initTabs() {
 }
 
 /* =========================================================================
+   Accounts & modes
+   ========================================================================= */
+function setMode(mode) {
+  state.mode = mode;
+  document.querySelectorAll('[data-show]').forEach(n => { n.hidden = n.dataset.show !== mode; });
+  $('#authView').hidden = true;
+  $('#shell').hidden = false;
+
+  const user = mode === 'user';
+  $('#pageTitle').textContent = user
+    ? `Hi ${state.user.name.split(' ')[0]}, how did this week go?`
+    : 'Smart Learning & Performance Optimizer';
+  $('#pageSub').textContent = user
+    ? 'Log your hours and confidence. We predict your marks, flag blind spots and rebuild your study plan.'
+    : 'ML regression → Mamdani fuzzy risk → Genetic Algorithm reallocation → weekly schedule.';
+  $('#inputTitle').textContent = user ? 'Weekly check-in' : 'Semester telemetry & self-assessment';
+  $('#inputSub').textContent = user
+    ? 'Hours you studied each subject this week, and how confident you feel about it.'
+    : 'Weekly target hours and perceived confidence per subject.';
+  $('.run-label').textContent = runLabel();
+  if (user) $('#liveToggle').checked = false;
+}
+
+function showAuth(tab = 'login', message = '') {
+  state.mode = null;
+  state.user = null;
+  state.result = null;
+  if ($('#subjectDialog').open) $('#subjectDialog').close();
+  $('#shell').hidden = true;
+  $('#authView').hidden = false;
+  setAuthTab(tab);
+  $('#authError').textContent = message;
+  $('#authError').hidden = !message;
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  $('#authForm [name="email"]').focus();
+}
+
+function setAuthTab(tab) {
+  const register = tab === 'register';
+  $('#authTabLogin').setAttribute('aria-selected', String(!register));
+  $('#authTabRegister').setAttribute('aria-selected', String(register));
+  $('#nameField').hidden = !register;
+  $('#pwHint').hidden = !register;
+  $('#authForm [name="password"]').autocomplete = register ? 'new-password' : 'current-password';
+  $('#authTitle').textContent = register ? 'Create your account' : 'Welcome back';
+  $('.auth-submit-label').textContent = register ? 'Create account' : 'Sign in';
+  $('#authError').hidden = true;
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const form = e.target;
+  const register = $('#authTabRegister').getAttribute('aria-selected') === 'true';
+  const body = { email: form.email.value.trim(), password: form.password.value };
+  if (register) body.name = form.elements.name.value.trim();
+
+  const problem = !body.email ? 'Enter your email.'
+    : !body.password ? 'Enter your password.'
+    : register && !body.name ? 'Enter your name.'
+    : register && body.password.length < 8 ? 'Password must be at least 8 characters.'
+    : '';
+  if (problem) {
+    $('#authError').textContent = problem;
+    $('#authError').hidden = false;
+    return;
+  }
+
+  const btn = $('#authSubmit');
+  btn.classList.add('is-loading');
+  btn.disabled = true;
+  try {
+    const res = await api(register ? '/api/auth/register' : '/api/auth/login', body);
+    state.user = res.user;
+    form.reset();
+    await enterUserMode();
+    if (register) toast(`👋 Welcome, ${state.user.name.split(' ')[0]}!`);
+  } catch (err) {
+    $('#authError').textContent = err.message;
+    $('#authError').hidden = false;
+  } finally {
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+  }
+}
+
+async function logout() {
+  try { await api('/api/auth/logout', {}); } catch { /* nothing to undo */ }
+  showAuth('login');
+  toast('Signed out');
+}
+
+async function deleteAccount() {
+  const ok = confirm(
+    'Delete your account?\n\nThis permanently removes your profile, subjects, every weekly check-in and every plan. It cannot be undone.');
+  if (!ok) return;
+  try {
+    await api('/api/me', undefined, 'DELETE');
+    showAuth('register');
+    toast('Your account and data were deleted');
+  } catch (err) {
+    showSubjectError(err.message);
+  }
+}
+
+async function enterUserMode() {
+  const [meta, subjects, checkins] = await Promise.all([
+    api('/api/me/meta'), api('/api/subjects'), api('/api/checkins'),
+  ]);
+  state.userMeta = meta;
+  state.subjects = subjects;
+  state.checkins = checkins;
+  state.viewing = null;
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+
+  setMode('user');
+  renderAccount();
+  renderSubjectList();
+  renderHistory();
+
+  const week = $('#weekInput');
+  week.max = meta.current_week;
+  week.value = meta.current_week;
+
+  const current = checkins.find(c => c.week_start === meta.current_week);
+  if (current) {
+    await openCheckin(current.id);
+  } else {
+    // Start this week from the latest week's numbers rather than from scratch
+    const latest = checkins[0] ? await api(`/api/checkins/${checkins[0].id}`) : null;
+    setInputsFrom(latest ? entryMap(latest) : {});
+    clearResults();
+    refreshInputs();
+  }
+  if (!subjects.length) openSubjectDialog();
+}
+
+async function enterDemo() {
+  if (!state.meta) {
+    state.meta = await api('/api/meta');
+    state.logins = state.meta.lms_logins;
+  }
+  setMode('demo');
+  if (location.hash !== '#demo') history.replaceState(null, '', '#demo');
+  selectPersona(state.persona || Object.keys(state.meta.personas)[0]);
+}
+
+function renderAccount() {
+  $('#accountAvatar').textContent = (state.user.name.trim()[0] || '?').toUpperCase();
+  $('#accountName').textContent = state.user.name;
+  $('#accountEmail').textContent = state.user.email;
+}
+
+/* ---------- Inputs for the signed-in user ---------- */
+const entryMap = ck => Object.fromEntries(ck.entries.map(e => [e.subject_id, { hours: e.hours, conf: e.confidence }]));
+const currentInputMap = () => Object.fromEntries(
+  state.subjects.map((s, i) => [s.id, { hours: state.hours[i], conf: state.conf[i] }]));
+
+function setInputsFrom(map) {
+  const [hMin, hMax] = state.userMeta.hours_range;
+  const [cMin, cMax] = state.userMeta.conf_range;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  state.hours = state.subjects.map(s => clamp(map[s.id]?.hours ?? DEFAULT_HOURS, hMin, hMax));
+  state.conf = state.subjects.map(s => clamp(map[s.id]?.conf ?? DEFAULT_CONF, cMin, cMax));
+}
+
+function refreshInputs() {
+  const none = state.mode === 'user' && !state.subjects.length;
+  $('#inputPanel').hidden = none;
+  $('#noSubjects').hidden = !none;
+  $('#runBtn').disabled = none;
+  if (none) { $('#emptyState').hidden = true; return; }
+  renderSubjects();
+}
+
+function examPill(iso) {
+  const d = daysUntil(iso);
+  if (d < 0) return '';
+  const label = d === 0 ? 'Exam today' : d === 1 ? 'Exam tomorrow' : `Exam in ${d}d`;
+  return `<span class="pill" title="Exam ${esc(fmtWeek(iso))}">${label}</span>`;
+}
+
+async function saveCheckin() {
+  const entries = state.subjects.map((s, i) => ({ subject_id: s.id, hours: state.hours[i], confidence: state.conf[i] }));
+  const ck = await api('/api/checkins', { week_start: $('#weekInput').value || null, entries });
+  state.result = ck.plan.result;
+  state.viewing = ck.id;
+  $('#weekInput').value = ck.week_start;
+  state.checkins = await api('/api/checkins');
+  renderHistory();
+}
+
+async function openCheckin(id) {
+  const ck = await api(`/api/checkins/${id}`);
+  state.viewing = ck.id;
+  $('#weekInput').value = ck.week_start;
+  setInputsFrom(entryMap(ck));
+  refreshInputs();
+  state.result = ck.plan.result;
+  setStepper(5);
+  renderResults();
+  renderHistory();
+  closeSidebar();
+}
+
+async function onWeekChanged() {
+  const input = $('#weekInput');
+  if (!input.value) return;
+  let week = mondayOf(input.value);
+  if (week > state.userMeta.current_week) week = state.userMeta.current_week;
+  input.value = week;
+  const existing = state.checkins.find(c => c.week_start === week);
+  if (existing) {
+    await openCheckin(existing.id);
+  } else {
+    state.viewing = null;
+    clearResults();
+    renderHistory();
+  }
+}
+
+/* ---------- Sidebar: subjects & history ---------- */
+function renderSubjectList() {
+  const list = $('#subjectList');
+  if (!state.subjects.length) {
+    list.innerHTML = '<li class="empty-line">No subjects yet</li>';
+    return;
+  }
+  list.innerHTML = state.subjects.map(s => {
+    const d = s.exam_date ? daysUntil(s.exam_date) : null;
+    const meta = d !== null && d >= 0 ? `exam ${d}d` : DIFFICULTY[s.difficulty];
+    return `<li style="--c:${s.color}"><span class="swatch"></span>${esc(s.name)}<span class="sub-meta">${esc(meta)}</span></li>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const list = $('#historyList');
+  if (!state.checkins.length) {
+    list.innerHTML = '<li class="empty-line">Your saved weeks will appear here.</li>';
+    return;
+  }
+  list.innerHTML = '';
+  state.checkins.forEach((c, i) => {
+    const prev = state.checkins[i + 1];
+    const delta = prev ? c.avg_predicted - prev.avg_predicted : null;
+    const trend = delta === null || Math.abs(delta) < 0.05 ? ''
+      : `<span class="${delta > 0 ? 'up' : 'down'}"> ${delta > 0 ? '▲' : '▼'}${Math.abs(delta).toFixed(1)}</span>`;
+    const label = c.week_start === state.userMeta.current_week ? 'This week' : `Week of ${fmtWeek(c.week_start)}`;
+    const btn = el('button', {
+      type: 'button',
+      'aria-current': String(c.id === state.viewing),
+      title: 'Average predicted mark across subjects',
+      onclick: () => openCheckin(c.id).catch(err => toast(err.message)),
+    }, `<span class="h-week">${esc(label)}</span>
+        <span class="h-score">${c.avg_predicted.toFixed(1)}%${trend}</span>
+        <span class="h-meta">${c.budget.toFixed(0)} h · focus: ${esc(c.top_priority)}</span>`);
+    const li = el('li');
+    li.append(btn);
+    list.append(li);
+  });
+}
+
+/* ---------- Subject manager dialog ---------- */
+function openSubjectDialog() {
+  renderSubjectRows();
+  $('#subjectError').hidden = true;
+  $('#subjectDialog').showModal();
+  closeSidebar();
+  $('#addSubjectForm [name="name"]').focus();
+}
+
+function showSubjectError(msg) {
+  $('#subjectError').textContent = msg;
+  $('#subjectError').hidden = false;
+}
+
+async function reloadSubjects() {
+  const keep = currentInputMap();
+  state.subjects = await api('/api/subjects');
+  setInputsFrom(keep);
+  renderSubjectRows();
+  renderSubjectList();
+  refreshInputs();
+  if (!state.result) clearResults();
+}
+
+async function mutateSubject(fn) {
+  $('#subjectError').hidden = true;
+  try {
+    await fn();
+    await reloadSubjects();
+    return true;
+  } catch (err) {
+    showSubjectError(err.message);
+    renderSubjectRows();  // put back the last saved values
+    return false;
+  }
+}
+
+function renderSubjectRows() {
+  const body = $('#subjectRows');
+  body.innerHTML = '';
+  if (!state.subjects.length) {
+    body.innerHTML = '<tr><td colspan="4" class="muted">No subjects yet. Add your first one below.</td></tr>';
+  }
+  const atLimit = state.subjects.length >= state.userMeta.max_subjects;
+  $('#addSubjectForm button').disabled = atLimit;
+  $('#addSubjectForm [name="name"]').placeholder = atLimit
+    ? `Limit of ${state.userMeta.max_subjects} subjects reached` : 'e.g. Operating Systems';
+
+  for (const s of state.subjects) {
+    const row = el('tr', { style: { '--c': s.color } }, `
+      <td><span class="name-cell"><span class="swatch"></span><input type="text" value="${esc(s.name)}" maxlength="60" aria-label="Subject name"></span></td>
+      <td><select aria-label="Difficulty of ${esc(s.name)}">
+        ${Object.entries(DIFFICULTY).map(([v, l]) => `<option value="${v}"${+v === s.difficulty ? ' selected' : ''}>${l}</option>`).join('')}
+      </select></td>
+      <td><input type="date" value="${s.exam_date || ''}" aria-label="Exam date for ${esc(s.name)}"></td>
+      <td><button type="button" class="icon-btn" aria-label="Remove ${esc(s.name)}">Remove</button></td>`);
+    const [nameIn, dateIn] = row.querySelectorAll('input');
+    const patch = changes => mutateSubject(() => api(`/api/subjects/${s.id}`, changes, 'PATCH'));
+    nameIn.addEventListener('change', () => {
+      if (nameIn.value.trim() && nameIn.value.trim() !== s.name) patch({ name: nameIn.value });
+      else nameIn.value = s.name;
+    });
+    $('select', row).addEventListener('change', e => patch({ difficulty: +e.target.value }));
+    dateIn.addEventListener('change', () => patch({ exam_date: dateIn.value || null }));
+    $('button', row).addEventListener('click', () => {
+      if (confirm(`Remove ${s.name}? Past check-ins that include it are kept.`)) {
+        mutateSubject(() => api(`/api/subjects/${s.id}`, undefined, 'DELETE'));
+      }
+    });
+    body.append(row);
+  }
+}
+
+async function addSubject(e) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.elements.name.value.trim();
+  if (!name) { form.elements.name.focus(); return; }
+  const ok = await mutateSubject(() => api('/api/subjects', {
+    name,
+    difficulty: +form.elements.difficulty.value,
+    exam_date: form.elements.exam_date.value || null,
+  }));
+  if (ok) {
+    form.reset();
+    form.elements.name.focus();
+  }
+}
+
+/* =========================================================================
    Boot
    ========================================================================= */
 async function boot() {
@@ -683,9 +1095,29 @@ async function boot() {
   $('#scrim').addEventListener('click', closeSidebar);
   $('#liveToggle').addEventListener('change', e => { if (e.target.checked) runPipeline(); });
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runPipeline();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !$('#shell').hidden && !$('#subjectDialog').open) runPipeline();
     if (e.key === 'Escape') closeSidebar();
   });
+
+  // Accounts
+  $('#authTabLogin').addEventListener('click', () => setAuthTab('login'));
+  $('#authTabRegister').addEventListener('click', () => setAuthTab('register'));
+  $('#authForm').addEventListener('submit', submitAuth);
+  $('#demoLink').addEventListener('click', e => {
+    e.preventDefault();
+    enterDemo().catch(err => { $('#authError').textContent = err.message; $('#authError').hidden = false; });
+  });
+  $('#exitDemo').addEventListener('click', e => { e.preventDefault(); showAuth('register'); });
+  $('#logoutBtn').addEventListener('click', logout);
+  $('#weekInput').addEventListener('change', () => onWeekChanged().catch(err => toast(err.message)));
+
+  // Subject manager
+  $('#manageBtn').addEventListener('click', openSubjectDialog);
+  $('#addFirstBtn').addEventListener('click', openSubjectDialog);
+  $('#dialogClose').addEventListener('click', () => $('#subjectDialog').close());
+  $('#dialogDone').addEventListener('click', () => $('#subjectDialog').close());
+  $('#addSubjectForm').addEventListener('submit', addSubject);
+  $('#deleteAccountBtn').addEventListener('click', deleteAccount);
 
   $('#copyBtn').addEventListener('click', async () => {
     try {
@@ -701,20 +1133,24 @@ async function boot() {
   });
 
   try {
-    state.meta = await api('/api/meta');
-    state.logins = state.meta.lms_logins;
+    try {
+      state.user = await api('/api/me');
+    } catch (err) {
+      if (err.status !== 401) throw err;
+    }
     $('#apiStatus').textContent = '● API online';
-    selectPersona(Object.keys(state.meta.personas)[0]);
+
+    if (state.user) await enterUserMode();
+    else if (location.hash === '#demo') await enterDemo();
+    else { showAuth('login'); return; }
 
     // Deep links for demos: ?run=1&tab=risk
     const params = new URLSearchParams(location.search);
     const tab = document.getElementById(`tab-${params.get('tab')}`);
     if (tab) tab.click();
-    if (params.has('run')) runPipeline();
+    if (params.has('run') && state.mode === 'demo') runPipeline();
   } catch (e) {
-    $('#apiStatus').textContent = '● API offline';
-    $('#errorBox').textContent = `Could not reach the API: ${e.message}. Start it with "uvicorn app.api:app --reload" from the project root.`;
-    $('#errorBox').hidden = false;
+    showAuth('login', `Could not reach the API: ${e.message}. Start it with "uvicorn app.api:app --reload" from the project root.`);
   }
 }
 
