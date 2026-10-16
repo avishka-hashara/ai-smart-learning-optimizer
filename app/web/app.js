@@ -758,7 +758,7 @@ function showAuth(tab = 'login', message = '') {
   state.mode = null;
   state.user = null;
   state.result = null;
-  if ($('#subjectDialog').open) $('#subjectDialog').close();
+  for (const d of ['#subjectDialog', '#profileDialog']) if ($(d).open) $(d).close();
   $('#shell').hidden = true;
   $('#authView').hidden = false;
   setAuthTab(tab);
@@ -831,7 +831,103 @@ async function deleteAccount() {
     showAuth('register');
     toast('Your account and data were deleted');
   } catch (err) {
-    showSubjectError(err.message);
+    showFormError('#profileError', err.message);
+  }
+}
+
+/* ---------- Profile ---------- */
+function showFormError(sel, msg) {
+  $(sel).textContent = msg;
+  $(sel).hidden = !msg;
+}
+
+function emailChanged() {
+  const typed = $('#profileForm [name="email"]').value.trim().toLowerCase();
+  return typed !== state.user.email;
+}
+
+function openProfileDialog() {
+  const u = state.user;
+  const form = $('#profileForm');
+  form.elements.name.value = u.name;
+  form.elements.email.value = u.email;
+  form.elements.university.value = u.university || '';
+  form.elements.programme.value = u.programme || '';
+  form.elements.year_of_study.value = u.year_of_study ? String(u.year_of_study) : '';
+  form.elements.current_password.value = '';
+  $('#emailPwField').hidden = true;
+  $('#passwordForm').reset();
+  $('#passwordForm [name="username"]').value = u.email;
+  showFormError('#profileError', '');
+  showFormError('#passwordError', '');
+  $('#profileAvatar').textContent = (u.name.trim()[0] || '?').toUpperCase();
+  const since = new Date(u.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  $('#profileSince').textContent = [u.programme, `Member since ${since}`].filter(Boolean).join(' · ');
+  $('#profileDialog').showModal();
+  closeSidebar();
+}
+
+async function saveProfile(e) {
+  e.preventDefault();
+  const form = e.target;
+  const body = {
+    name: form.elements.name.value.trim(),
+    university: form.elements.university.value.trim(),
+    programme: form.elements.programme.value.trim(),
+    year_of_study: form.elements.year_of_study.value ? Number(form.elements.year_of_study.value) : null,
+  };
+  const email = form.elements.email.value.trim();
+  if (emailChanged()) {
+    body.email = email;
+    body.current_password = form.elements.current_password.value;
+  }
+
+  const problem = !body.name ? 'Enter your name.'
+    : !email ? 'Enter your email.'
+    : body.email && !body.current_password ? 'Enter your current password to change your email.'
+    : '';
+  if (problem) return showFormError('#profileError', problem);
+
+  const btn = $('#profileSave');
+  btn.disabled = true;
+  try {
+    state.user = await api('/api/me', body, 'PATCH');
+    renderAccount();
+    if (state.mode === 'user') {
+      $('#pageTitle').textContent = `Hi ${state.user.name.split(' ')[0]}, how did this week go?`;
+    }
+    $('#profileDialog').close();
+    toast('✅ Profile saved');
+  } catch (err) {
+    showFormError('#profileError', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function changePassword(e) {
+  e.preventDefault();
+  const form = e.target;
+  const current = form.elements.current_password.value;
+  const next = form.elements.new_password.value;
+  const problem = !current ? 'Enter your current password.'
+    : next.length < 8 ? 'New password must be at least 8 characters.'
+    : next !== form.elements.confirm.value ? "New passwords don't match."
+    : next === current ? 'New password must be different.'
+    : '';
+  if (problem) return showFormError('#passwordError', problem);
+
+  const btn = $('#passwordSave');
+  btn.disabled = true;
+  try {
+    await api('/api/me/password', { current_password: current, new_password: next });
+    form.reset();
+    showFormError('#passwordError', '');
+    toast('🔒 Password updated. Other devices were signed out.');
+  } catch (err) {
+    showFormError('#passwordError', err.message);
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1095,7 +1191,7 @@ async function boot() {
   $('#scrim').addEventListener('click', closeSidebar);
   $('#liveToggle').addEventListener('change', e => { if (e.target.checked) runPipeline(); });
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !$('#shell').hidden && !$('#subjectDialog').open) runPipeline();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !$('#shell').hidden && !$('#subjectDialog').open && !$('#profileDialog').open) runPipeline();
     if (e.key === 'Escape') closeSidebar();
   });
 
@@ -1117,6 +1213,13 @@ async function boot() {
   $('#dialogClose').addEventListener('click', () => $('#subjectDialog').close());
   $('#dialogDone').addEventListener('click', () => $('#subjectDialog').close());
   $('#addSubjectForm').addEventListener('submit', addSubject);
+
+  // Profile
+  $('#profileBtn').addEventListener('click', openProfileDialog);
+  $('#profileClose').addEventListener('click', () => $('#profileDialog').close());
+  $('#profileForm').addEventListener('submit', saveProfile);
+  $('#profileForm [name="email"]').addEventListener('input', () => { $('#emailPwField').hidden = !emailChanged(); });
+  $('#passwordForm').addEventListener('submit', changePassword);
   $('#deleteAccountBtn').addEventListener('click', deleteAccount);
 
   $('#copyBtn').addEventListener('click', async () => {

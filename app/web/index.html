@@ -114,11 +114,13 @@
       </section>
 
       <div class="account" data-show="user">
-        <div class="account-avatar" id="accountAvatar" aria-hidden="true"></div>
-        <div class="account-text">
-          <div class="account-name" id="accountName"></div>
-          <div class="account-email muted" id="accountEmail"></div>
-        </div>
+        <button class="account-btn" id="profileBtn" type="button" title="Profile and account settings">
+          <span class="account-avatar" id="accountAvatar" aria-hidden="true"></span>
+          <span class="account-text">
+            <span class="account-name" id="accountName"></span>
+            <span class="account-email muted" id="accountEmail"></span>
+          </span>
+        </button>
         <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">Sign out</button>
       </div>
 
@@ -331,9 +333,94 @@
       <button class="btn btn-primary btn-sm" type="submit">Add</button>
     </form>
     <div class="alert" id="subjectError" role="alert" hidden></div>
-    <div class="dialog-foot">
-      <button class="link-danger" type="button" id="deleteAccountBtn">Delete my account and data</button>
+    <div class="dialog-foot dialog-foot-end">
       <button class="btn btn-ghost" type="button" id="dialogDone">Done</button>
+    </div>
+  </dialog>
+
+  <!-- ================= PROFILE ================= -->
+  <dialog class="dialog" id="profileDialog" aria-labelledby="profileDialogTitle">
+    <div class="dialog-head">
+      <div class="profile-head">
+        <div class="account-avatar avatar-lg" id="profileAvatar" aria-hidden="true"></div>
+        <div>
+          <h2 id="profileDialogTitle">My profile</h2>
+          <p class="muted" id="profileSince"></p>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" id="profileClose" aria-label="Close">✕</button>
+    </div>
+
+    <form class="dialog-section" id="profileForm" novalidate>
+      <h3>Details</h3>
+      <div class="form-grid">
+        <label class="input-field">
+          <span>Name</span>
+          <input type="text" name="name" autocomplete="name" maxlength="80" required>
+        </label>
+        <label class="input-field">
+          <span>Email</span>
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label class="input-field">
+          <span>University <small class="muted">optional</small></span>
+          <input type="text" name="university" autocomplete="organization" maxlength="120" placeholder="e.g. University of Moratuwa">
+        </label>
+        <label class="input-field">
+          <span>Degree programme <small class="muted">optional</small></span>
+          <input type="text" name="programme" maxlength="120" placeholder="e.g. BSc in Artificial Intelligence">
+        </label>
+        <label class="input-field">
+          <span>Year of study</span>
+          <select name="year_of_study">
+            <option value="">Not set</option>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+            <option value="5">Year 5</option>
+            <option value="6">Year 6</option>
+          </select>
+        </label>
+        <label class="input-field" id="emailPwField" hidden>
+          <span>Current password <small class="muted">needed to change email</small></span>
+          <input type="password" name="current_password" autocomplete="current-password" maxlength="72">
+        </label>
+      </div>
+      <div class="alert" id="profileError" role="alert" hidden></div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-sm" type="submit" id="profileSave">Save details</button>
+      </div>
+    </form>
+
+    <form class="dialog-section" id="passwordForm" novalidate>
+      <h3>Change password</h3>
+      <p class="muted">You'll stay signed in here. Any other device is signed out.</p>
+      <input type="text" name="username" autocomplete="username" hidden>
+      <div class="form-grid form-grid-3">
+        <label class="input-field">
+          <span>Current password</span>
+          <input type="password" name="current_password" autocomplete="current-password" maxlength="72" required>
+        </label>
+        <label class="input-field">
+          <span>New password</span>
+          <input type="password" name="new_password" autocomplete="new-password" minlength="8" maxlength="72" required>
+        </label>
+        <label class="input-field">
+          <span>Confirm new password</span>
+          <input type="password" name="confirm" autocomplete="new-password" minlength="8" maxlength="72" required>
+        </label>
+      </div>
+      <div class="alert" id="passwordError" role="alert" hidden></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost btn-sm" type="submit" id="passwordSave">Update password</button>
+      </div>
+    </form>
+
+    <div class="dialog-section danger-zone">
+      <h3>Delete account</h3>
+      <p class="muted">Permanently removes your profile, subjects, every weekly check-in and every plan.</p>
+      <button class="link-danger" type="button" id="deleteAccountBtn">Delete my account and data</button>
     </div>
   </dialog>
 

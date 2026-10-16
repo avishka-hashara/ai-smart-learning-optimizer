@@ -235,6 +235,63 @@ def test_deleting_used_subject_archives_it(server):
 
 
 @needs_model
+def test_update_profile(server):
+    c = new_client(server, "prof@example.com", "Prof")
+    r = c.patch("/api/me", json={"name": "  Pat Smith ", "university": "UoM",
+                                 "programme": "BSc AI", "year_of_study": 2})
+    assert r.status_code == 200, r.text
+    me = r.json()
+    assert (me["name"], me["university"], me["programme"], me["year_of_study"]) == \
+        ("Pat Smith", "UoM", "BSc AI", 2)
+
+    # Unsent fields stay; blank optional text clears it
+    me = c.patch("/api/me", json={"university": "  "}).json()
+    assert me["university"] is None and me["programme"] == "BSc AI"
+
+    assert c.patch("/api/me", json={"name": "   "}).status_code == 422
+    assert c.patch("/api/me", json={"name": None}).status_code == 422
+    assert c.patch("/api/me", json={"year_of_study": 0}).status_code == 422
+    assert c.patch("/api/me", json={"university": "x" * 121}).status_code == 422
+    assert TestClient(app).patch("/api/me", json={"name": "X"}).status_code == 401
+
+
+def test_change_email_needs_password_and_must_be_free(server):
+    c = new_client(server, "mover@example.com")
+    new_client(server, "taken@example.com")
+
+    assert c.patch("/api/me", json={"email": "moved@example.com"}).status_code == 403
+    assert c.patch("/api/me", json={"email": "moved@example.com",
+                                    "current_password": "wrong password"}).status_code == 403
+    r = c.patch("/api/me", json={"email": "Taken@Example.com", "current_password": PASSWORD})
+    assert r.status_code == 409
+    # Same email (any case) needs no password
+    assert c.patch("/api/me", json={"email": "MOVER@example.com"}).status_code == 200
+
+    r = c.patch("/api/me", json={"email": "Moved@Example.com", "current_password": PASSWORD})
+    assert r.status_code == 200 and r.json()["email"] == "moved@example.com"
+    login = TestClient(app).post("/api/auth/login", json={"email": "moved@example.com", "password": PASSWORD})
+    assert login.status_code == 200
+
+
+def test_change_password_signs_out_other_sessions(server):
+    c = new_client(server, "pw@example.com")
+    other = TestClient(app)
+    assert other.post("/api/auth/login", json={"email": "pw@example.com", "password": PASSWORD}).status_code == 200
+
+    new_pw = "a brand new secret"
+    assert c.post("/api/me/password", json={"current_password": "wrong", "new_password": new_pw}).status_code == 403
+    assert c.post("/api/me/password", json={"current_password": PASSWORD, "new_password": "short"}).status_code == 422
+    assert c.post("/api/me/password", json={"current_password": PASSWORD, "new_password": PASSWORD}).status_code == 422
+
+    assert c.post("/api/me/password", json={"current_password": PASSWORD, "new_password": new_pw}).status_code == 204
+    assert c.get("/api/me").status_code == 200       # this session got a fresh token
+    assert other.get("/api/me").status_code == 401   # the other one is revoked
+
+    anon = TestClient(app)
+    assert anon.post("/api/auth/login", json={"email": "pw@example.com", "password": PASSWORD}).status_code == 401
+    assert anon.post("/api/auth/login", json={"email": "pw@example.com", "password": new_pw}).status_code == 200
+
+
 def test_delete_account_removes_everything(server):
     c = new_client(server, "leaving@example.com")
     uid = c.get("/api/me").json()["id"]

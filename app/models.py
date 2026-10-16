@@ -29,7 +29,12 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(128))
     name: Mapped[str] = mapped_column(String(80))
+    university: Mapped[str | None] = mapped_column(String(120))
+    programme: Mapped[str | None] = mapped_column(String(120))
+    year_of_study: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # Sessions issued before this are rejected (set on password change)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     subjects: Mapped[list["Subject"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", passive_deletes=True)

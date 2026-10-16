@@ -717,8 +717,26 @@ input[type="range"]::-moz-range-thumb {
 .account + .side-foot { margin-top: 0; }
 .account-avatar { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
 .account-text { min-width: 0; flex: 1; }
-.account-name { font-weight: 600; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.account-email { font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-name { display: block; font-weight: 600; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-email { display: block; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -6px;
+  padding: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.account-btn:hover { background: var(--surface-2); }
+.account-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 
 .onboarding .btn { margin-top: 16px; }
 
@@ -743,6 +761,31 @@ input[type="range"]::-moz-range-thumb {
 .add-subject { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 8px; }
 .icon-btn { border: 0; background: none; cursor: pointer; padding: 6px 8px; border-radius: 8px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
 .icon-btn:hover { color: var(--bad-text); background: rgba(239, 68, 68, 0.1); }
+.dialog-foot-end { justify-content: flex-end; }
+
+.profile-head { display: flex; align-items: center; gap: 14px; }
+.profile-head h2 { margin: 0; }
+.profile-head p { margin: 2px 0 0; }
+.avatar-lg { width: 52px; height: 52px; font-size: 1.3rem; }
+.dialog-section { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+.dialog-section h3 { margin: 0; font-size: 0.95rem; }
+.dialog-section > p { margin: -6px 0 0; font-size: 0.84rem; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-actions { display: flex; justify-content: flex-end; }
+.input-field > span small { font-weight: 500; }
+.input-field select {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  padding: 9px 11px;
+}
+.input-field select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.danger-zone { align-items: flex-start; }
+
 .link-danger { border: 0; background: none; padding: 0; cursor: pointer; font-size: 0.8rem; color: var(--bad-text); text-decoration: underline; text-underline-offset: 2px; }
 
 /* =========================================================================
@@ -793,6 +836,8 @@ input[type="range"]::-moz-range-thumb {
   .add-subject input[name="name"], .add-subject button { grid-column: 1 / -1; }
   .dialog { padding: 16px; }
   .dialog-foot { flex-direction: column-reverse; align-items: stretch; }
+  .form-grid, .form-grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .form-actions .btn { flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
