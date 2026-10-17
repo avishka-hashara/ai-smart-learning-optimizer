@@ -37,8 +37,24 @@ def predict_scores(features_df):
     if missing_cols:
         raise ValueError(f"Stage 1 Error: Input DataFrame is missing required columns: {missing_cols}")
         
-    # 2. Predict
-    predictions = model.predict(features_df)
-    
-    # 3. Clip output to the strict 0-100 universe required by Stage 2
+    # 2. Normalise subject names to the trained categories (e.g. 'maths ' -> 'Maths')
+    known_subjects = list(model.named_steps['preprocessor'].named_transformers_['cat'].categories_[0])
+    lookup = {s.lower(): s for s in known_subjects}
+    features_df = features_df.copy()
+    features_df['subject'] = [lookup.get(str(s).strip().lower(), s) for s in features_df['subject']]
+
+    # 3. Predict
+    predictions = model.predict(features_df).astype(float)
+
+    # 4. Unseen-subject fallback. An unknown subject one-hot encodes to all zeros,
+    # which never occurs in training (out of distribution, predicts ~45 regardless
+    # of name). Instead, predict the row as each known subject and average: a
+    # neutral prior that still responds to the student's other features.
+    unseen = ~features_df['subject'].isin(known_subjects).to_numpy()
+    if unseen.any():
+        rows = features_df[unseen]
+        per_subject = [model.predict(rows.assign(subject=s)) for s in known_subjects]
+        predictions[unseen] = np.mean(per_subject, axis=0)
+
+    # 5. Clip output to the strict 0-100 universe required by Stage 2
     return np.clip(predictions, 0, 100)

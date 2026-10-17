@@ -3,11 +3,19 @@
 Run from the project root (the model path is relative to it):
     uvicorn app.api:app --reload
 then open http://localhost:8000
+
+Database migrations run on startup (set AUTO_MIGRATE=0 to manage them
+yourself with `alembic upgrade head`).
+
+/api/meta, /api/run and /api/lms-sync are the public demo (personas, no
+account). Signed-in users go through /api/auth, /api/subjects and
+/api/checkins instead, which save every week's check-in and plan.
 """
 
 import os
 import sys
 import time
+from contextlib import asynccontextmanager
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
@@ -15,23 +23,41 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 # Ensure the project root is in the Python path for reliable module imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(ROOT)
 
-from app.config import PERSONAS, SUBJECT_META, SUBJECTS, HOURS_RANGE, CONF_RANGE, run_pipeline
+from app import auth, study
+from app.config import PERSONAS, SUBJECT_META, SUBJECTS, HOURS_RANGE, CONF_RANGE, run_pipeline, to_payload
 
 WEB_DIR = os.path.join(os.path.dirname(__file__), 'web')
 N = len(SUBJECTS)
 
-app = FastAPI(title="Smart Learning & Performance Optimizer")
+
+def migrate():
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(os.path.join(ROOT, 'alembic.ini'))
+    cfg.set_main_option('script_location', os.path.join(ROOT, 'migrations'))
+    cfg.attributes['skip_logging_config'] = True
+    command.upgrade(cfg, 'head')
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    if os.getenv('AUTO_MIGRATE', '1') == '1':
+        migrate()
+    yield
+
+
+app = FastAPI(title="Smart Learning & Performance Optimizer", lifespan=lifespan)
+app.include_router(auth.router)
+app.include_router(study.router)
 
 
 class RunRequest(BaseModel):
     hours: list[float] = Field(min_length=N, max_length=N)
     confidence: list[float] = Field(min_length=N, max_length=N)
-
-
-def _round(values, digits=2):
-    return [round(float(v), digits) for v in values]
 
 
 @app.get("/api/meta")
@@ -69,29 +95,9 @@ def run(req: RunRequest):
         raise HTTPException(400, str(exc))
     timings['total_ms'] = round((time.perf_counter() - started) * 1000)
 
-    risk = res['risk_results']
-    alloc = res['allocation_results']
-    return {
-        "subjects": SUBJECTS,
-        "budget": res['budget'],
-        "input_hours": _round(req.hours, 1),
-        "confidence": _round(res['confidence_array'], 1),
-        "predicted": _round(res['predicted_marks']),
-        "risk": {
-            "priority": _round(risk['priority']),
-            "gap": _round(risk['gap']),
-            "label": list(risk['label']),
-            "explanation": list(risk['explanation']),
-        },
-        "allocation": {
-            "hours": _round(alloc['hours']),
-            "fitness": round(float(alloc['fitness']), 3),
-            "history": _round(alloc['history'], 3),
-            "baselines": {k: round(float(v), 3) for k, v in alloc['baselines'].items()},
-        },
-        "schedule": res['schedule'],
-        "timings": timings,
-    }
+    payload = to_payload(res, req.hours, SUBJECT_META)
+    payload["timings"] = timings
+    return payload
 
 
 # Mounted last so /api routes take precedence

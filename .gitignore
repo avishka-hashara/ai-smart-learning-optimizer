@@ -10,3 +10,16 @@ models/*.joblib
 
 # Local virtual environment
 .venv/
+docs/viva_prep_member1.md
+REPORT.md
+
+# Local database and secrets
+*.db
+*.db-journal
+.env
+Individual Contribution Sheet_EAI.docx
+Individual Contribution Sheet_EAI_Avishka.docx
+HOW_TO_RUN.md
+VIVA.md
+VIVA.docx
+VIVA.md
