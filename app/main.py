@@ -336,7 +336,7 @@ if 'current_persona' not in st.session_state:
     st.session_state.current_persona = "The Overconfident Student"
 
 if 'lms_logins' not in st.session_state:
-    st.session_state.lms_logins = [np.random.randint(5, 16) for _ in range(5)]
+    st.session_state.lms_logins = [np.random.randint(5, 16) for _ in range(len(SUBJECTS))]
 
 if 'pipeline_results' not in st.session_state:
     st.session_state.pipeline_results = None
@@ -376,7 +376,7 @@ with st.sidebar:
     if st.button("🔄 Sync LMS / Canvas Telemetry", use_container_width=True):
         with st.spinner("Connecting to LMS API..."):
             time.sleep(0.6)
-            st.session_state.lms_logins = [np.random.randint(6, 18) for _ in range(5)]
+            st.session_state.lms_logins = [np.random.randint(6, 18) for _ in range(len(SUBJECTS))]
         st.toast("✅ Real-time telemetry synced successfully!", icon="📡")
         st.rerun()
         
@@ -468,8 +468,8 @@ with btn_col2:
 if run_btn:
     with st.spinner("Executing 4-Stage AI Optimization Pipeline..."):
         st.session_state.pipeline_results = run_pipeline(
-            hours=[edited_data[f'hours_{i}'] for i in range(5)],
-            confidence=[edited_data[f'conf_{i}'] for i in range(5)]
+            hours=[edited_data[f'hours_{i}'] for i in range(len(SUBJECTS))],
+            confidence=[edited_data[f'conf_{i}'] for i in range(len(SUBJECTS))]
         )
         
     st.toast("🎯 Optimization pipeline completed successfully!", icon="✨")
@@ -559,7 +559,7 @@ if st.session_state.pipeline_results is not None:
             x=subjects,
             y=predicted_marks,
             marker=dict(
-                color=[SUBJECT_META[i]['color'] for i in range(5)],
+                color=[SUBJECT_META[i]['color'] for i in range(len(SUBJECTS))],
                 line=dict(color='rgba(255,255,255,0.2)', width=1.5)
             ),
             text=[f"{val:.1f}%" for val in predicted_marks],
@@ -675,7 +675,7 @@ if st.session_state.pipeline_results is not None:
         st.markdown("#### ⏱️ Genetic Algorithm Revision Time Optimization")
         st.caption("Heuristic search shifts revision hours from saturated topics toward high-priority modules with diminishing returns.")
         
-        orig_hours = [edited_data[f'hours_{i}'] for i in range(5)]
+        orig_hours = [edited_data[f'hours_{i}'] for i in range(len(SUBJECTS))]
         opt_hours = np.round(allocation_results['hours'], 1)
         
         fig_comp = go.Figure()

@@ -18,29 +18,30 @@ PERSONAS = {
     "The Overconfident Student": {
         "description": "High self-rated confidence despite borderline predicted performance in technical subjects.",
         "avatar": "🦁",
-        "conf": [9.0, 5.0, 6.0, 7.0, 5.0],
-        "hours": [12.0, 15.0, 8.0, 20.0, 5.0]
+        "conf": [9.0, 8.0, 5.0, 6.0],
+        "hours": [12.0, 10.0, 15.0, 8.0]
     },
     "The Anxious High Achiever": {
         "description": "Consistently strong performance telemetry despite severe under-confidence in core subjects.",
         "avatar": "🦉",
-        "conf": [3.0, 8.0, 7.0, 8.0, 9.0],
-        "hours": [25.0, 20.0, 22.0, 30.0, 18.0]
+        "conf": [3.0, 4.0, 8.0, 8.0],
+        "hours": [25.0, 22.0, 20.0, 18.0]
     },
     "The Uniformly Weak Student": {
         "description": "Critical low attendance and engagement requiring urgent structured study reallocations.",
         "avatar": "🌱",
-        "conf": [2.0, 3.0, 2.0, 4.0, 2.0],
-        "hours": [5.0, 4.0, 6.0, 5.0, 3.0]
+        "conf": [2.0, 3.0, 2.0, 3.0],
+        "hours": [5.0, 4.0, 6.0, 3.0]
     }
 }
 
+# Must match the subjects the Stage 1 model was trained on
+# (src/prediction/prepare_data.py); any other name gets a generic estimate.
 SUBJECT_META = [
-    {"name": "Databases", "icon": "💾", "color": "#38bdf8", "accent": "rgba(56, 189, 248, 0.4)"},
-    {"name": "Networks", "icon": "🌐", "color": "#818cf8", "accent": "rgba(129, 140, 248, 0.4)"},
-    {"name": "Statistics", "icon": "📊", "color": "#fb7185", "accent": "rgba(251, 113, 133, 0.4)"},
-    {"name": "Maths", "icon": "📐", "color": "#facc15", "accent": "rgba(250, 204, 21, 0.4)"},
-    {"name": "Ethics", "icon": "⚖️", "color": "#4ade80", "accent": "rgba(74, 222, 128, 0.4)"},
+    {"name": "Maths", "icon": "📐", "color": "#38bdf8", "accent": "rgba(56, 189, 248, 0.4)"},
+    {"name": "Science", "icon": "🔬", "color": "#818cf8", "accent": "rgba(129, 140, 248, 0.4)"},
+    {"name": "English", "icon": "📖", "color": "#fb7185", "accent": "rgba(251, 113, 133, 0.4)"},
+    {"name": "History", "icon": "🏛️", "color": "#facc15", "accent": "rgba(250, 204, 21, 0.4)"},
 ]
 SUBJECTS = [s["name"] for s in SUBJECT_META]
 
